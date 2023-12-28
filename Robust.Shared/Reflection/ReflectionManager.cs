@@ -122,7 +122,8 @@ namespace Robust.Shared.Reflection
             var enumerable = assemblies.ToList();
             foreach (var assembly in enumerable)
             {
-                if (assembly.GetCustomAttribute<HotReloadable>() != null)
+                var settings = assembly.GetCustomAttribute<RobustMod>();
+                if (settings is not {Reloadable: true})
                 {
                     _sawmill.Error($"Attempted to unload Assembly {assembly.FullName} which does not support hot reloading");
                     continue;

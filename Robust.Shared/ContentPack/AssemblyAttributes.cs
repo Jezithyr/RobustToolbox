@@ -2,12 +2,10 @@
 
 namespace Robust.Shared.ContentPack;
 
-//Does this assembly support being unloaded and reloaded?
+//What is the name of this mod and is it reloadable?
 [AttributeUsage(AttributeTargets.Assembly)]
-public class HotReloadable : Attribute;
-
-[AttributeUsage(AttributeTargets.Assembly)]
-public class RobustMod(ModAssemblyType type = ModAssemblyType.Gameplay) : Attribute
+public class RobustMod(string modName, bool reloadable) : Attribute
 {
-    public ModAssemblyType Type { get; } = type;
+    public string ModName { get; } = modName;
+    public bool Reloadable { get; } = reloadable;
 }

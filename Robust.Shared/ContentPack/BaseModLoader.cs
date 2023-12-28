@@ -172,16 +172,16 @@ namespace Robust.Shared.ContentPack
         {
             public Assembly GameAssembly { get; }
             public List<SharedEntry> EntryPoints { get; } = new();
-            public bool SupportsReloading { get; }
+            public bool SupportsReloading { get; }  = false;
             public ModAssemblyType ModType { get; }
             public ModInfo(Assembly gameAssembly)
             {
                 GameAssembly = gameAssembly;
-                SupportsReloading = gameAssembly.GetCustomAttribute<HotReloadable>() != null;
                 ModType = ModAssemblyType.Gameplay;
-                if (gameAssembly.GetCustomAttribute<RobustMod>() is { } modAttribute)
+                var settings = gameAssembly.GetCustomAttribute<RobustMod>();
+                if (settings != null)
                 {
-                    ModType = modAttribute.Type;
+                    SupportsReloading = settings.Reloadable;
                 }
             }
         }
