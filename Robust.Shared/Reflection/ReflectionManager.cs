@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using Robust.Shared.ContentPack;
 using Robust.Shared.IoC;
 using Robust.Shared.Log;
 using Robust.Shared.Serialization;
@@ -28,6 +29,8 @@ namespace Robust.Shared.Reflection
         private readonly List<Assembly> assemblies = new();
 
         public event EventHandler<ReflectionUpdateEventArgs>? OnAssemblyAdded;
+
+        public event EventHandler<ReflectionUpdateEventArgs>? OnAssemblyRemoved;
 
         [ViewVariables] public IReadOnlyList<Assembly> Assemblies => assemblies;
 
@@ -110,6 +113,24 @@ namespace Robust.Shared.Reflection
             this.assemblies.AddRange(assemblies);
             _getAllTypesCache.Clear();
             OnAssemblyAdded?.Invoke(this, new ReflectionUpdateEventArgs(this));
+        }
+
+        public void UnloadAssemblies(params Assembly[] args) => LoadAssemblies(args.AsEnumerable());
+
+        public void UnloadAssemblies(IEnumerable<Assembly> assemblies)
+        {
+            var enumerable = assemblies.ToList();
+            foreach (var assembly in enumerable)
+            {
+                if (assembly.GetCustomAttribute<HotReloadable>() != null)
+                {
+                    _sawmill.Error($"Attempted to unload Assembly {assembly.FullName} which does not support hot reloading");
+                    continue;
+                }
+                this.assemblies.Remove(assembly);
+            }
+            _getAllTypesCache.Clear();
+            OnAssemblyRemoved?.Invoke(this, new ReflectionUpdateEventArgs(this));
         }
 
         /// <seealso cref="TypePrefixes"/>

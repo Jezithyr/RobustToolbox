@@ -90,10 +90,26 @@ namespace Robust.Shared.Reflection
         void LoadAssemblies(params Assembly[] args);
 
         /// <summary>
+        /// Unloads assemblies into the manager and clears all their types.
+        /// </summary>
+        void UnloadAssemblies(IEnumerable<Assembly> assemblies);
+
+        /// <summary>
+        /// Unloads assemblies into the manager and clears all their types.
+        /// </summary>
+        void UnloadAssemblies(params Assembly[] args);
+
+        /// <summary>
         /// Fired whenever an assembly is added through <see cref="LoadAssemblies"/>,
         /// this means more types might be available from <see cref="GetType(string)"/> and <see cref="GetAllChildren{T}(bool)"/>
         /// </summary>
         event EventHandler<ReflectionUpdateEventArgs>? OnAssemblyAdded;
+
+        /// <summary>
+        /// Fired whenever an assembly is removed through <see cref="UnloadAssemblies"/>,
+        /// this means less types will be available from <see cref="GetType(string)"/> and <see cref="GetAllChildren{T}(bool)"/>
+        /// </summary>
+        event EventHandler<ReflectionUpdateEventArgs>? OnAssemblyRemoved;
 
         /// <summary>
         ///     Tries to parse an enum in the form "enum.PowerStorageAppearance.Charge", for use in prototyping.
