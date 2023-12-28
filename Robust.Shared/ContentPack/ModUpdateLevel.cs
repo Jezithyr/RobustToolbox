@@ -29,5 +29,10 @@
         ///     Ran after processing network packets and pending asynchronous tasks.
         /// </summary>
         InputPostEngine,
+
+        /// <summary>
+        ///     This update is called when the user interface should update, this only applies to the client
+        /// </summary>
+        UserInterface,
     }
 }

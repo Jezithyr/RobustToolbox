@@ -1,50 +1,21 @@
 ﻿using System;
-using System.Collections.Generic;
-using Robust.Shared.ContentPack;
-using Robust.Shared.IoC;
 using Robust.Shared.Timing;
 
-namespace Robust.Shared.UserInterface;
+namespace Robust.Shared.ContentPack;
 
 public interface IUICallback;
 
-public abstract class UIShared : IDisposable
+public abstract class UIShared : SharedEntry
 {
-    protected internal IDependencyCollection Dependencies { get; internal set; } = default!;
-    protected List<ModuleTestingCallbacks> TestingCallbacks { get; private set; } = new();
-
-    public void SetTestingCallbacks(List<ModuleTestingCallbacks> testingCallbacks)
+    public override void Update(ModUpdateLevel level, FrameEventArgs frameEventArgs)
     {
-        TestingCallbacks = testingCallbacks;
+        //TODO: Hook up broadcast for when UI should get updated!
+        //We only care about UI frame updates
+        if (level == ModUpdateLevel.UserInterface)
+            UIUpdate(frameEventArgs);
     }
 
-    public virtual void PreInit()
-    {
-    }
-
-    public virtual void Init()
-    {
-    }
-
-    public virtual void PostInit()
-    {
-    }
-
-    public virtual void Update(FrameEventArgs frameEventArgs)
-    {
-    }
-
-    public virtual void Shutdown()
-    {
-    }
-
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
+    public virtual void UIUpdate(FrameEventArgs frameEventArgs)
     {
     }
 }

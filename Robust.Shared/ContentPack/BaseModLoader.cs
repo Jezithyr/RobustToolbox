@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Loader;
 using Robust.Shared.IoC;
 using Robust.Shared.Log;
 using Robust.Shared.Reflection;
@@ -34,14 +36,11 @@ namespace Robust.Shared.ContentPack
         protected void InitMod(Assembly assembly)
         {
             var mod = new ModInfo(assembly);
-
             ReflectionManager.LoadAssemblies(mod.GameAssembly);
-
-            var entryPoints = mod.GameAssembly.GetTypes().Where(t => typeof(GameShared).IsAssignableFrom(t));
-
+            var entryPoints = mod.GameAssembly.GetTypes().Where(t => typeof(SharedEntry).IsAssignableFrom(t));
             foreach (var entryPoint in entryPoints)
             {
-                var entryPointInstance = (GameShared) Activator.CreateInstance(entryPoint)!;
+                var entryPointInstance = (SharedEntry) Activator.CreateInstance(entryPoint)!;
                 entryPointInstance.Dependencies = _dependencies;
                 if (_testingCallbacks != null)
                 {
@@ -50,8 +49,45 @@ namespace Robust.Shared.ContentPack
 
                 mod.EntryPoints.Add(entryPointInstance);
             }
-
             Mods.Add(mod);
+        }
+
+        public bool IsHotReloadable(Assembly typeAssembly)
+        {
+            foreach (var mod in Mods)
+            {
+                if (mod.GameAssembly == typeAssembly)
+                {
+                    return mod.SupportsReloading;
+                }
+            }
+            return false;
+        }
+
+        public bool TryGetContentAssemblyType(Assembly typeAssembly,[NotNullWhen(true)] out ModAssemblyType? modType)
+        {
+            modType = null;
+            foreach (var mod in Mods)
+            {
+                if (mod.GameAssembly == typeAssembly)
+                {
+                    modType = mod.ModType;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public ModAssemblyType GetContentAssemblyType(Assembly contentAssembly)
+        {
+            foreach (var mod in Mods)
+            {
+                if (mod.GameAssembly == contentAssembly)
+                {
+                    return mod.ModType;
+                }
+            }
+            throw new ArgumentException($"{contentAssembly} is not a Content Assembly!");
         }
 
         public bool IsContentAssembly(Assembly typeAssembly)
@@ -134,14 +170,20 @@ namespace Robust.Shared.ContentPack
         /// </summary>
         protected sealed class ModInfo
         {
+            public Assembly GameAssembly { get; }
+            public List<SharedEntry> EntryPoints { get; } = new();
+            public bool SupportsReloading { get; }
+            public ModAssemblyType ModType { get; }
             public ModInfo(Assembly gameAssembly)
             {
                 GameAssembly = gameAssembly;
-                EntryPoints = new List<GameShared>();
+                SupportsReloading = gameAssembly.GetCustomAttribute<HotReloadable>() != null;
+                ModType = ModAssemblyType.Gameplay;
+                if (gameAssembly.GetCustomAttribute<RobustMod>() is { } modAttribute)
+                {
+                    ModType = modAttribute.Type;
+                }
             }
-
-            public Assembly GameAssembly { get; }
-            public List<GameShared> EntryPoints { get; }
         }
     }
 }
