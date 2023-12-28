@@ -33,7 +33,6 @@ namespace Robust.Shared.ContentPack
 
         private bool _useLoadContext = true;
         private bool _sandboxingEnabled;
-
         private bool _contentHotReloadingEnabled;
 
         private readonly List<string> _engineModuleDirectories = new();

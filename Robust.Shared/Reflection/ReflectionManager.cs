@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using Robust.Shared.ContentModules;
 using Robust.Shared.ContentPack;
 using Robust.Shared.IoC;
 using Robust.Shared.Log;
@@ -122,7 +123,7 @@ namespace Robust.Shared.Reflection
             var enumerable = assemblies.ToList();
             foreach (var assembly in enumerable)
             {
-                var settings = assembly.GetCustomAttribute<RobustMod>();
+                var settings = assembly.GetCustomAttribute<RobustModuleAttribute>();
                 if (settings is not {Reloadable: true})
                 {
                     _sawmill.Error($"Attempted to unload Assembly {assembly.FullName} which does not support hot reloading");

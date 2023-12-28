@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
+using Robust.Shared.ContentModules;
 using Robust.Shared.IoC;
 using Robust.Shared.Log;
 using Robust.Shared.Reflection;
@@ -140,7 +141,7 @@ namespace Robust.Shared.ContentPack
             {
                 GameAssembly = gameAssembly;
                 ModType = ModAssemblyType.Gameplay;
-                var settings = gameAssembly.GetCustomAttribute<RobustMod>();
+                var settings = gameAssembly.GetCustomAttribute<RobustModuleAttribute>();
                 if (settings != null)
                 {
                     SupportsReloading = settings.Reloadable;
