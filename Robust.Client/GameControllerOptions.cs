@@ -10,6 +10,13 @@ namespace Robust.Client
         /// </summary>
         public bool Sandboxing { get; init; } = true;
 
+        /// <summary>
+        ///     Whether content Hot Reloading will be enabled
+        ///     Default off, this should only be used in development!
+        /// </summary>
+        public bool HotReloading { get; init; } = false;
+
+
         // TODO: Expose mounting methods to games using Robust as a library.
         /// <summary>
         ///     Lists of mount options to mount.

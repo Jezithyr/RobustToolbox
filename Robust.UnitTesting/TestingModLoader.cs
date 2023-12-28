@@ -51,6 +51,11 @@ namespace Robust.UnitTesting
             // Nada.
         }
 
+        public void SetEnableHotReloading(bool hotReloading)
+        {
+            // Nada.
+        }
+
         public Func<string, Stream?>? VerifierExtraLoadHandler { get; set; }
 
         public void AddEngineModuleDirectory(string dir)

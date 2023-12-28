@@ -7,7 +7,8 @@ namespace Robust.Client
 #if FULL_RELEASE
             throw new System.InvalidOperationException("ContentStart.Start is not available on a full release.");
 #else
-            GameController.Start(args, new GameControllerOptions(), true);
+            //Allow hotreloading in development only
+            GameController.Start(args, new GameControllerOptions(){HotReloading = true}, true);
 #endif
         }
 

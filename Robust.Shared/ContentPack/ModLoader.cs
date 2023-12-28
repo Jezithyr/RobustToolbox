@@ -34,6 +34,8 @@ namespace Robust.Shared.ContentPack
         private bool _useLoadContext = true;
         private bool _sandboxingEnabled;
 
+        private bool _contentHotReloadingEnabled;
+
         private readonly List<string> _engineModuleDirectories = new();
         private readonly List<ExtraModuleLoad> _extraModuleLoads = new();
 
@@ -57,6 +59,12 @@ namespace Robust.Shared.ContentPack
         {
             _useLoadContext = useLoadContext;
             Sawmill.Debug("{0} assembly load context", useLoadContext ? "ENABLING" : "DISABLING");
+        }
+
+        public void SetEnableHotReloading(bool hotReloading)
+        {
+            _contentHotReloadingEnabled = hotReloading;
+            Sawmill.Debug("{0} content hot reloading", hotReloading ? "ENABLING" : "DISABLING");
         }
 
         public void SetEnableSandboxing(bool sandboxing)
@@ -436,6 +444,20 @@ namespace Robust.Shared.ContentPack
                 options |= PEStreamOptions.LeaveOpen;
 
             return new PEReader(stream, options);
+        }
+
+        public bool IsHotReloadable(Assembly typeAssembly)
+        {
+            if (!_contentHotReloadingEnabled)
+                return false;
+            foreach (var mod in Mods)
+            {
+                if (mod.GameAssembly == typeAssembly)
+                {
+                    return mod.SupportsReloading;
+                }
+            }
+            return false;
         }
     }
 }

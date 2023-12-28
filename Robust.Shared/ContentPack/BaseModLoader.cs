@@ -52,44 +52,6 @@ namespace Robust.Shared.ContentPack
             Mods.Add(mod);
         }
 
-        public bool IsHotReloadable(Assembly typeAssembly)
-        {
-            foreach (var mod in Mods)
-            {
-                if (mod.GameAssembly == typeAssembly)
-                {
-                    return mod.SupportsReloading;
-                }
-            }
-            return false;
-        }
-
-        public bool TryGetContentAssemblyType(Assembly typeAssembly,[NotNullWhen(true)] out ModAssemblyType? modType)
-        {
-            modType = null;
-            foreach (var mod in Mods)
-            {
-                if (mod.GameAssembly == typeAssembly)
-                {
-                    modType = mod.ModType;
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        public ModAssemblyType GetContentAssemblyType(Assembly contentAssembly)
-        {
-            foreach (var mod in Mods)
-            {
-                if (mod.GameAssembly == contentAssembly)
-                {
-                    return mod.ModType;
-                }
-            }
-            throw new ArgumentException($"{contentAssembly} is not a Content Assembly!");
-        }
-
         public bool IsContentAssembly(Assembly typeAssembly)
         {
             foreach (var mod in Mods)

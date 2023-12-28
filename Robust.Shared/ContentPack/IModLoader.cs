@@ -77,6 +77,8 @@ namespace Robust.Shared.ContentPack
         void SetUseLoadContext(bool useLoadContext);
         void SetEnableSandboxing(bool sandboxing);
 
+        void SetEnableHotReloading(bool hotReloading);
+
         Func<string, Stream?>? VerifierExtraLoadHandler { get; set; }
 
         void AddEngineModuleDirectory(string dir);

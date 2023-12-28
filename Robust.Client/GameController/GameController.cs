@@ -130,6 +130,8 @@ namespace Robust.Client
             _modLoader.SetUseLoadContext(!ContentStart);
             var disableSandbox = Environment.GetEnvironmentVariable("ROBUST_DISABLE_SANDBOX") == "1";
             _modLoader.SetEnableSandboxing(!disableSandbox && Options.Sandboxing);
+            var enableHotReload = Environment.GetEnvironmentVariable("ROBUST_HOT_RELOADING") == "1";
+            _modLoader.SetEnableHotReloading(enableHotReload || Options.HotReloading);
 
             if (!LoadModules())
                 return false;
