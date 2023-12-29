@@ -14,6 +14,8 @@ namespace Robust.Client
         {
             ClientIoC.RegisterIoC(mode, deps);
             deps.BuildGraph();
+            //TODO use ModManager!
+            BaseModLoader.InjectDeps();
             RegisterReflection(deps);
         }
 

@@ -56,6 +56,8 @@ namespace Robust.Server
             deps.BuildGraph();
             SetupLogging(deps);
             InitReflectionManager(deps);
+            //TODO use ModManager!
+            BaseModLoader.InjectDeps();
 
             var server = deps.Resolve<IBaseServerInternal>();
             var logger = deps.Resolve<ILogManager>().RootSawmill;

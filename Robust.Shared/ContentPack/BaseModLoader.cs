@@ -5,10 +5,16 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
 using Robust.Shared.ContentModules;
+using Robust.Shared.GameObjects;
+using Robust.Shared.GameStates;
 using Robust.Shared.IoC;
 using Robust.Shared.Log;
+using Robust.Shared.Prototypes;
 using Robust.Shared.Reflection;
+using Robust.Shared.Serialization;
+using Robust.Shared.Serialization.Manager.Attributes;
 using Robust.Shared.Timing;
+using Robust.Shared.ViewVariables;
 
 namespace Robust.Shared.ContentPack
 {
@@ -17,6 +23,19 @@ namespace Robust.Shared.ContentPack
         [Dependency] protected readonly IReflectionManager ReflectionManager = default!;
         [Dependency] protected readonly ILogManager LogManager = default!;
         [Dependency] private readonly IDependencyCollection _dependencies = default!;
+
+        //TODO: HOLY FUCK THIS IS TERRIBLE REPLACE THIS WITH SOMETHING NOT SHIT!!!! (When modmanager is implemented)
+        internal static List<SharedEntry> TEMP_EntryPoints = new();
+
+        internal static void InjectDeps(IDependencyCollection deps)
+        {
+            foreach (var entryPoint in TEMP_EntryPoints)
+            {
+                IoCManager.InjectDependencies(entryPoint);
+                entryPoint.PostInject();
+            }
+        }
+
 
         private readonly List<ModuleTestingCallbacks> _testingCallbacks = new();
 
@@ -47,8 +66,9 @@ namespace Robust.Shared.ContentPack
                 {
                     entryPointInstance.SetTestingCallbacks(_testingCallbacks);
                 }
-
                 mod.EntryPoints.Add(entryPointInstance);
+                //TODO remove this when modmanager is implemented properly
+                TEMP_EntryPoints.Add(entryPointInstance);
             }
             Mods.Add(mod);
         }
