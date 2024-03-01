@@ -34,6 +34,11 @@ namespace Robust.Shared.ContentPack
         {
         }
 
+        public virtual void PreUnload()
+        {
+        }
+
+
         public virtual void Shutdown()
         {
         }
