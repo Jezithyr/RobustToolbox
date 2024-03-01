@@ -42,11 +42,11 @@ internal sealed class ModuleInspector : IDisposable, IPostInjectInit
 
         // Try to find SkipIfSandboxedAttribute.
 
-        if (_checkSandbox && TryFindSkipIfSandboxed(metaReader))
-        {
-            _sawmill.Debug("Module {ModuleName} has SkipIfSandboxedAttribute, ignoring.", name);
-            return null;
-        }
+        // if (_checkSandbox && TryFindSkipIfSandboxed(metaReader))
+        // {
+        //     _sawmill.Debug("Module {ModuleName} has SkipIfSandboxedAttribute, ignoring.", name);
+        //     return null;
+        // }
 
         return (metaReader.AssemblyReferences
             .Select(a => metaReader.GetAssemblyReference(a))
