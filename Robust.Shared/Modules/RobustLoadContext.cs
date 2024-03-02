@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -12,27 +13,70 @@ namespace Robust.Shared.Modules;
 
 
 
-public sealed class RobustContentLoadContext(string? name = null, bool supportsLiveReload = false)
+internal sealed class RobustContentLoadContext(string? name = null, bool supportsLiveReload = false) : RobustLoadContext<GameShared>
 {
-    [Dependency] private readonly IReflectionManager _reflectionManager = default!;
-    [Dependency] private readonly IDependencyCollection _dependencies = default!;
+};
 
-    private Dictionary<Assembly, List<GameShared>> _entryPoints = new();
-    private readonly List<ModuleTestingCallbacks> _testingCallbacks = new();
+public sealed class RobustEngineLoadContext
+{
+    //TODO: Setup engine entryPoints
+};
 
-    private AssemblyLoadContext? _loadContext;
-    private AssemblyLoadContext LoadContext
+
+internal abstract class RobustLoadContext<T>(string? name = null, bool supportsLiveReload = false) where T: RobustEntryPoint
+{
+    [Dependency] protected readonly IReflectionManager ReflectionManager = default!;
+    [Dependency] protected readonly IDependencyCollection Dependencies = default!;
+
+    internal string? Name { get; init; } = name;
+    internal bool SupportsReloading { get; init; } = supportsLiveReload;
+
+    private Dictionary<Assembly, List<T>> _entryPoints = new();
+    internal IReadOnlyDictionary<Assembly, List<T>> EntryPoints => _entryPoints;
+    protected readonly List<ModuleTestingCallbacks> TestingCallbacks = new();
+
+    private ConcurrentQueue<RobustAssemblyReference> _assembliesToLoad = new();
+
+    protected AssemblyLoadContext? _loadContext;
+    protected AssemblyLoadContext LoadContext
     {
-        get => _loadContext ?? new AssemblyLoadContext(name, supportsLiveReload);
+        get => _loadContext ?? new AssemblyLoadContext(Name, SupportsReloading);
         set => _loadContext = value;
     }
 
-    public Assembly LoadFromStream(Stream assembly, Stream? symbols)
+
+    internal void QueueAssemblyLoad(RobustAssemblyReference asmRef)
     {
-        return LoadContext.LoadFromStream(assembly, symbols);
+        _assembliesToLoad.Enqueue(asmRef);
     }
 
-    public Assembly LoadFromAssemblyPath(string path)
+    internal void LoadQueuedAssemblies()
+    {
+        foreach (var asmRef in _assembliesToLoad)
+        {
+            LoadFromAssemblyRef(asmRef);
+        }
+    }
+
+
+    internal Assembly LoadFromAssemblyRef(RobustAssemblyReference asmRef)
+    {
+        var assembly = asmRef.IsVirtualAsm
+            ? LoadFromStream(asmRef.AsmStream, asmRef.PdbStream)
+            : LoadFromAssemblyPath(asmRef.AsmPath!);
+        InitModule(assembly);
+        return assembly;
+    }
+
+
+    internal Assembly LoadFromStream(Stream assemblyStream, Stream? symbolStream)
+    {
+        var assembly = LoadContext.LoadFromStream(assemblyStream, symbolStream);
+        InitModule(assembly);
+        return assembly;
+    }
+
+    internal Assembly LoadFromAssemblyPath(string path)
     {
         var assembly = LoadContext.LoadFromAssemblyPath(path);
         InitModule(assembly);
@@ -41,23 +85,23 @@ public sealed class RobustContentLoadContext(string? name = null, bool supportsL
 
     private void InitModule(Assembly assembly)
     {
-        _reflectionManager.LoadAssemblies(assembly);
-        var entryPointTypes = assembly.GetTypes().Where(t => typeof(GameShared).IsAssignableFrom(t));
-        List<GameShared> entryPointInstances = new();
+        ReflectionManager.LoadAssemblies(assembly);
+        var entryPointTypes = assembly.GetTypes().Where(t => typeof(T).IsAssignableFrom(t));
+        List<T> entryPointInstances = new();
         foreach (var entryPoint in entryPointTypes)
         {
-            var entryPointInstance = (GameShared) Activator.CreateInstance(entryPoint)!;
-            entryPointInstance.Dependencies = _dependencies;
-            if (_testingCallbacks != null)
+            var entryPointInstance = (T) Activator.CreateInstance(entryPoint)!;
+            entryPointInstance.Dependencies = Dependencies;
+            if (TestingCallbacks != null)
             {
-                entryPointInstance.SetTestingCallbacks(_testingCallbacks);
+                entryPointInstance.SetTestingCallbacks(TestingCallbacks);
             }
             entryPointInstances.Add(entryPointInstance);
         }
         _entryPoints.Add(assembly, entryPointInstances);
     }
 
-    public void Unload()
+    internal void Unload()
     {
         if (_loadContext == null)
             return;
@@ -74,16 +118,9 @@ public sealed class RobustContentLoadContext(string? name = null, bool supportsL
     {
         foreach (var (_,entryPoints) in _entryPoints)
         {
-            if (livereload)
-            {
-                foreach (var entryPoint in entryPoints)
-                {
-                    entryPoint.PreUnload();
-                }
-            }
-
             foreach (var entryPoint in entryPoints)
             {
+                entryPoint.Shutdown(livereload);
                 entryPoint.Shutdown();
             }
 
@@ -93,16 +130,11 @@ public sealed class RobustContentLoadContext(string? name = null, bool supportsL
             }
         }
         _entryPoints.Clear();
-        _testingCallbacks.Clear();
+        TestingCallbacks.Clear();
     }
 
     public void Shutdown()
     {
         UnloadModules(false);
     }
-};
-
-public sealed class RobustEngineLoadContext
-{
-    //TODO: Setup engine entryPoints
-};
+}

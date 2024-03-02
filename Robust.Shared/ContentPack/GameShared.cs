@@ -8,7 +8,14 @@ namespace Robust.Shared.ContentPack
     /// <summary>
     ///     Common entry point for Content assemblies.
     /// </summary>
-    public abstract class GameShared : IDisposable
+    public abstract class GameShared : RobustEntryPoint
+    {
+        public virtual void Update(ModUpdateLevel level, FrameEventArgs frameEventArgs)
+        {
+        }
+    }
+
+    public abstract class RobustEntryPoint : IDisposable
     {
         protected internal IDependencyCollection Dependencies { get; internal set; } = default!;
         protected List<ModuleTestingCallbacks> TestingCallbacks { get; private set; } = new();
@@ -18,28 +25,43 @@ namespace Robust.Shared.ContentPack
             TestingCallbacks = testingCallbacks;
         }
 
+        //LEGACY
         public virtual void PreInit()
         {
         }
 
+        //LEGACY
         public virtual void Init()
         {
         }
 
+        //LEGACY
         public virtual void PostInit()
         {
         }
 
-        public virtual void Update(ModUpdateLevel level, FrameEventArgs frameEventArgs)
+        public virtual void PreInit(bool reloaded)
         {
         }
 
-        public virtual void PreUnload()
+        public virtual void Init(bool reloaded)
         {
         }
 
+        public virtual void PostInit(bool reloaded)
+        {
+        }
 
+        public virtual void LiveReloadComplete()
+        {
+        }
+
+        //LEGACY
         public virtual void Shutdown()
+        {
+        }
+
+        public virtual void Shutdown(bool reloading)
         {
         }
 
@@ -53,4 +75,6 @@ namespace Robust.Shared.ContentPack
         {
         }
     }
+
 }
+
