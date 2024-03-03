@@ -7,39 +7,13 @@ using Robust.Shared.Log;
 
 namespace Robust.Shared.Modules;
 
-internal record RobustAssemblyReference : IDisposable
+internal record RobustAssemblyRef : IDisposable
 {
-    private readonly Stream _asmStream = default!;
-    private readonly Stream? _pdbStream;
+    private readonly RobustAsmStream _robustAsmStream;
+    internal Stream AsmStream => _robustAsmStream.AssemblyStream;
+    internal Stream? PdbStream => _robustAsmStream.PdbStream;
     internal string? AsmPath { get; init; }
-    internal Stream AsmStream
-    {
-        get => _asmStream;
-        private init
-        {
-            _asmStream  = new MemoryStream(); //clone our stream because Idk if it gets closed by the metadata context
-            value.CopyTo(_asmStream);
-            value.Position = 0;
-            _asmStream.Position = 0;
-        }
-    }
-    internal Stream? PdbStream
-    {
-        get => _pdbStream;
-        private init
-        {
-            if (value == null)
-            {
-                _pdbStream = null;
-                return;
-            }
-            _pdbStream  = new MemoryStream(); //clone our stream because Idk if it gets closed by the metadata context
-            value.CopyTo(_pdbStream);
-            value.Position = 0;
-            _pdbStream.Position = 0;
-        }
-    }
-    internal bool HasPdb => _pdbStream != null;
+    internal bool HasPdb => _robustAsmStream.HasPdb;
     internal bool AssemblyHasPath => AsmPath != null;
 
     internal string AssemblyName { get; init; }
@@ -50,19 +24,34 @@ internal record RobustAssemblyReference : IDisposable
     internal bool IsContentAsm { get; init; }
     internal bool IsSandboxed { get; init; }
     internal IReadOnlyDictionary<Type,Attribute> AsmAttributes { get; }
+    private ErrorFlag _errors = ErrorFlag.None;
+    public ErrorFlag Errors => _errors;
+    internal bool IsValid => _errors == ErrorFlag.None;
+    private ISawmill _sawmill;
 
-
-    internal RobustAssemblyReference(ISawmill sawmill,
+    internal RobustAssemblyRef(ISawmill sawmill,
         Assembly assembly,
-        Stream asmStream,
         string contentPrefix,
-        Stream? pdbStream = null,
+        Stream asmSteam,
+        Stream? pdbStream,
+        string? asmPath = null)
+        : this(sawmill, assembly, contentPrefix, new RobustAsmStream(asmSteam, pdbStream), asmPath)
+    {
+    }
+
+    internal RobustAssemblyRef(ISawmill sawmill,
+        Assembly assembly,
+        string contentPrefix,
+        RobustAsmStream robustAsmStream,
         string? asmPath = null)
     {
         AssemblyName = assembly.GetName().Name!;
-        AsmStream = asmStream;
-        PdbStream = pdbStream;
+        _robustAsmStream = robustAsmStream;
         AsmPath = asmPath;
+        _sawmill = sawmill;
+
+        if (!robustAsmStream.IsValid || robustAsmStream.AssemblyName != assembly.GetName().Name)
+            _errors |= ErrorFlag.InvalidAssemblyData;
 
         foreach (var referencedAssemblyName in assembly.GetReferencedAssemblies())
         {
@@ -94,7 +83,7 @@ internal record RobustAssemblyReference : IDisposable
         IsContentAsm = robustModuleAttr.IsContentAssembly;
         SupportsReloading = robustModuleAttr.SupportsLiveReloading;
         ModuleId = robustModuleAttr.Id ?? assembly.GetName().Name!;
-
+        PrintErrors();
     }
 
     private IReadOnlyDictionary<Type, Attribute> ReadAssemblyAttributes(IReadOnlyList<CustomAttributeData> attrsData)
@@ -110,9 +99,32 @@ internal record RobustAssemblyReference : IDisposable
         return temp;
     }
 
+    internal void AddError(ErrorFlag newFlag)
+    {
+        _errors |= ErrorFlag.InvalidAssemblyData;
+    }
+
+    internal void PrintErrors()
+    {
+        if (_errors == ErrorFlag.None)
+            return;
+        if (_errors.HasFlag(ErrorFlag.InvalidAssemblyData))
+        {
+            _sawmill.Error($"Assembly stream data for asm {AssemblyName} is invalid or does not match!");
+        }
+    }
     public void Dispose()
     {
-        _asmStream.Dispose();
-        _pdbStream?.Dispose();
+        _robustAsmStream.Dispose();
+    }
+
+    [Flags]
+    internal enum ErrorFlag
+    {
+        None = 0,
+        UnspecifiedError = 1,
+        InvalidAssemblyData = 1 << 1,
+        ModuleIdConflict = 1 << 2,
+        SandboxViolation = 1 << 3,
     }
 }

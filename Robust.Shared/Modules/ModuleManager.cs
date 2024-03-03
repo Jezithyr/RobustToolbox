@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Loader;
+using System.Threading;
 using Robust.Shared.ContentPack;
 using Robust.Shared.IoC;
 using Robust.Shared.Log;
@@ -18,41 +19,34 @@ internal sealed partial class ModuleManager
 
     /// <summary>
     /// Assembly context for core engine and dependencies.
-    /// When launching from content, content will also be present here!
+    /// When launching from content, content stub will also be present here!
     /// </summary>
     internal AssemblyLoadContext CoreContext => AssemblyLoadContext.Default;
     /// <summary>
-    /// Assembly context for engine modules and dependencies that do not support live-reloading.
+    /// Assembly context for additional modules and dependencies that do not support live-reloading.
     /// </summary>
-    internal AssemblyLoadContext EngineStaticContext { get; private set; } = default!;
-    /// <summary>
-    /// Assembly context for engine modules and dependencies that DO support live-reloading.
-    /// </summary>
-    internal AssemblyLoadContext EngineDynamicContext { get; private set; } = default!;
-    /// <summary>
-    /// Assembly context for content modules and dependencies that do not support live-reloading.
-    /// </summary>
-    internal RobustContentLoadContext ContentStaticContext { get; private set; } = default!;
-    /// <summary>
-    /// Assembly context for content modules and dependencies that DO support live-reloading.
-    /// </summary>
-    internal RobustContentLoadContext ContentDynamicContext { get; private set; } = default!;
+    internal RobustLoadContext StaticContext { get; private set; } = default!;
+
     internal string ContentPrefix { get; private set; } = string.Empty;
-
-    internal bool MidReload { get; private set; } = false;
+    internal string EnginePrefix { get; private set; } = string.Empty;
     private bool _sandboxingEnabled;
-    private ISawmill _sawmill = default!;
-    internal int InspectorCount { get; private set; }
 
-    internal readonly ConcurrentDictionary<string, RobustAssemblyReference> StaticLoadedAsmRefs = new();
-    internal readonly ConcurrentDictionary<string, RobustAssemblyReference> DynamicLoadedAsmRefs = new();
-    internal readonly ConcurrentDictionary<string, RobustAssemblyReference> StaticPendingAsmRefs = new();
-    internal readonly ConcurrentDictionary<string, RobustAssemblyReference> DynamicPendingAsmRefs = new();
+    private ISawmill _sawmill = default!;
+
+    private int _inspectorCount;
+    internal int InspectorCount => _inspectorCount;
+
     public void Initialize()
     {
         _sawmill = _logManager.GetSawmill("robust.mod");
-        ContentStaticContext = new RobustContentLoadContext("Content.Static");
-        ContentDynamicContext = new RobustContentLoadContext("Content.Dynamic", true);
+        StaticContext = new();
+        InitializeReloadData();
+    }
+
+    public void SetPrefixes(string contentPrefix, string enginePrefix)
+    {
+        ContentPrefix = contentPrefix;
+        EnginePrefix = enginePrefix;
     }
 
     public void SetEnableSandboxing(bool sandboxing)
@@ -64,50 +58,44 @@ internal sealed partial class ModuleManager
 
     private ModuleInspector CreateNewInspector(ResPath asmPath)
     {
-        InspectorCount++;
+        Interlocked.Increment(ref _inspectorCount);
         using var asmFile = _resourceManager.ContentFileRead(asmPath);
         _resourceManager.TryContentFileRead(asmPath.WithExtension("pdb").CanonPath, out var pdbFile);
-        return new ModuleInspector(ContentPrefix, _sandboxingEnabled, asmFile, pdbFile, asmPath.CanonPath, InspectorFinalized);
+        return new ModuleInspector(ContentPrefix, _sandboxingEnabled, asmFile, pdbFile, asmPath.CanonPath, InspectorClosed);
     }
 
     private ModuleInspector CreateNewInspector(Stream asmStream, Stream? pdbStream)
     {
-        InspectorCount++;
-        return new ModuleInspector(ContentPrefix, _sandboxingEnabled,asmStream, pdbStream, onFinalize: InspectorFinalized);
+        Interlocked.Increment(ref _inspectorCount);
+        return new ModuleInspector(ContentPrefix, _sandboxingEnabled, asmStream, pdbStream, onFinalize: InspectorClosed);
     }
 
-    public void StartLiveReload()
+    private void InspectorClosed()
     {
-        if (MidReload)
-            _sawmill.Warning("Cannot start a live-reload while one is already in progress!");
-        MidReload = true;
-        //TODO Reloading stuff goes here
-        FinishLiveReload(); //this will end up getting called by an event.
-    }
-
-    private void FinishLiveReload()
-    {
-        MidReload = false;
-        BroadcastContentReloadFinished();
-    }
-
-    private void InspectorFinalized()
-    {
-        InspectorCount--;
-        if (InspectorCount < 0)
+        var newCount = Interlocked.Decrement(ref _inspectorCount);
+        if (newCount < 0)
         {
-            InspectorCount = 0;
+            newCount = 0;
         }
-        if (InspectorCount == 0 && MidReload)
-        {
+
+        if (newCount == 0)
+            LastInspectorClosed();
+    }
+
+    private void LastInspectorClosed()
+    {
+        //TODO: track inspectors and their active threads.
             FinishLiveReload();
-        }
     }
 
     public void ShutDown()
     {
+        //TODO: Terminate running inspectors
     }
 
+    partial void InitializeReloadData();
+    partial void FinishLiveReload();
+    partial void LiveReload_Implementation();
 }
 
 

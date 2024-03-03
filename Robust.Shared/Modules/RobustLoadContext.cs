@@ -1,51 +1,87 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
 using Robust.Shared.ContentPack;
 using Robust.Shared.IoC;
+using Robust.Shared.Log;
 using Robust.Shared.Reflection;
 
 namespace Robust.Shared.Modules;
 
 
+internal sealed class RobustLoadContext : RobustLoadContextBase;
 
-internal sealed class RobustContentLoadContext(string? name = null, bool supportsLiveReload = false) : RobustLoadContext<GameShared>
-{
-};
-
-public sealed class RobustEngineLoadContext
-{
-    //TODO: Setup engine entryPoints
-};
-
-
-internal abstract class RobustLoadContext<T>(string? name = null, bool supportsLiveReload = false) where T: RobustEntryPoint
+internal abstract partial class RobustLoadContextBase
 {
     [Dependency] protected readonly IReflectionManager ReflectionManager = default!;
-    [Dependency] protected readonly IDependencyCollection Dependencies = default!;
+    [Dependency] protected readonly IDependencyCollection Deps = default!;
+    [Dependency] protected readonly ILogManager LogManager = default!;
+    protected ISawmill Sawmill;
+    internal string? GlobalName { get; init; }
+    protected const string LoadContextEnginePrefix = "Robust.";
+    protected const string LoadContextContentPrefix = "Content.";
+    internal virtual bool SupportsReloading => false;
 
-    internal string? Name { get; init; } = name;
-    internal bool SupportsReloading { get; init; } = supportsLiveReload;
-
-    private Dictionary<Assembly, List<T>> _entryPoints = new();
-    internal IReadOnlyDictionary<Assembly, List<T>> EntryPoints => _entryPoints;
+    private readonly Dictionary<Assembly, List<RobustEntryPoint>> _entryPoints = new();
+    internal IReadOnlyDictionary<Assembly, List<RobustEntryPoint>> EntryPoints => _entryPoints;
     protected readonly List<ModuleTestingCallbacks> TestingCallbacks = new();
 
-    private ConcurrentQueue<RobustAssemblyReference> _assembliesToLoad = new();
+    internal readonly ConcurrentDictionary<string, RobustAssemblyRef> LoadedAssemblies = new();
+    internal readonly ConcurrentDictionary<string, RobustAssemblyRef> PendingAssemblies = new();
 
-    protected AssemblyLoadContext? _loadContext;
-    protected AssemblyLoadContext LoadContext
+    private ConcurrentQueue<RobustAssemblyRef> _assembliesToLoad = new();
+    private AssemblyLoadContext? _contentLoadContext;
+    private AssemblyLoadContext? _engineLoadContext;
+    protected RobustLoadContextBase(string? globalName = null)
     {
-        get => _loadContext ?? new AssemblyLoadContext(Name, SupportsReloading);
-        set => _loadContext = value;
+        IoCManager.InjectDependencies(this);
+        GlobalName = globalName;
+        Sawmill = LogManager.GetSawmill("robust.mod");
+    }
+
+    protected AssemblyLoadContext ContentLoadContext
+    {
+        get
+        {
+            if (_contentLoadContext != null)
+                return _contentLoadContext;
+            _contentLoadContext = CreateLoadContext(true);
+            return _contentLoadContext;
+
+        }
+        set => _contentLoadContext = value;
+    }
+    protected AssemblyLoadContext EngineLoadContext
+    {
+        get
+        {
+            if (_engineLoadContext != null)
+                return _engineLoadContext;
+            _engineLoadContext = CreateLoadContext(false);
+            return _engineLoadContext;
+
+        }
+        set => _engineLoadContext = value;
+    }
+
+    private AssemblyLoadContext CreateLoadContext(bool isContent)
+    {
+        string prefix = isContent ? LoadContextContentPrefix : LoadContextEnginePrefix;
+        return CreateLoadContextWithName($"{prefix}{GlobalName}");
+    }
+
+    protected virtual AssemblyLoadContext CreateLoadContextWithName(string name)
+    {
+        return new AssemblyLoadContext(name);
     }
 
 
-    internal void QueueAssemblyLoad(RobustAssemblyReference asmRef)
+    internal void QueueAssemblyLoad(RobustAssemblyRef asmRef)
     {
         _assembliesToLoad.Enqueue(asmRef);
     }
@@ -59,7 +95,7 @@ internal abstract class RobustLoadContext<T>(string? name = null, bool supportsL
     }
 
 
-    internal Assembly LoadFromAssemblyRef(RobustAssemblyReference asmRef)
+    internal Assembly LoadFromAssemblyRef(RobustAssemblyRef asmRef)
     {
         var assembly = asmRef.IsVirtualAsm
             ? LoadFromStream(asmRef.AsmStream, asmRef.PdbStream)
@@ -71,56 +107,80 @@ internal abstract class RobustLoadContext<T>(string? name = null, bool supportsL
 
     internal Assembly LoadFromStream(Stream assemblyStream, Stream? symbolStream)
     {
-        var assembly = LoadContext.LoadFromStream(assemblyStream, symbolStream);
+        var assembly = ContentLoadContext.LoadFromStream(assemblyStream, symbolStream);
         InitModule(assembly);
         return assembly;
     }
 
     internal Assembly LoadFromAssemblyPath(string path)
     {
-        var assembly = LoadContext.LoadFromAssemblyPath(path);
+        var assembly = ContentLoadContext.LoadFromAssemblyPath(path);
         InitModule(assembly);
         return assembly;
     }
 
-    private void InitModule(Assembly assembly)
+    private List<RobustEntryPoint> CreateEntryPoints(Assembly assembly)
     {
         ReflectionManager.LoadAssemblies(assembly);
-        var entryPointTypes = assembly.GetTypes().Where(t => typeof(T).IsAssignableFrom(t));
-        List<T> entryPointInstances = new();
+        var entryPointTypes = assembly.GetTypes().Where(t => typeof(RobustEntryPoint).IsAssignableFrom(t));
+        List<RobustEntryPoint> entryPointInstances = new();
+
         foreach (var entryPoint in entryPointTypes)
         {
-            var entryPointInstance = (T) Activator.CreateInstance(entryPoint)!;
-            entryPointInstance.Dependencies = Dependencies;
-            if (TestingCallbacks != null)
-            {
-                entryPointInstance.SetTestingCallbacks(TestingCallbacks);
-            }
-            entryPointInstances.Add(entryPointInstance);
+            if (!TryCreateEntryPoint(entryPoint, out var entry))
+                continue;
+            entryPointInstances.Add(entry);
+            entry.Dependencies = Deps;
+            entry.SetTestingCallbacks(TestingCallbacks);
+            SetupReloadListener(entry);
         }
-        _entryPoints.Add(assembly, entryPointInstances);
+        return entryPointInstances;
     }
 
-    internal void Unload()
+    protected virtual bool TryCreateEntryPoint(Type entryPointType, [NotNullWhen(true)] out RobustEntryPoint? entryPointInstance)
     {
-        if (_loadContext == null)
-            return;
-        if (!supportsLiveReload)
-        {
-            throw new InvalidOperationException($"UnloadAssemblies called on RobustLoadContext: {LoadContext.Name} that does not support live-reloading!");
-        }
-        UnloadModules(true);
-        LoadContext.Unload();
-        _loadContext = null;
+        entryPointInstance = Activator.CreateInstance(entryPointType) as RobustEntryPoint;
+        if (entryPointInstance == null)
+            return false;
+        return true;
     }
 
-    private void UnloadModules(bool livereload)
+    private void InitModule(Assembly assembly)
+    {
+        _entryPoints.Add(assembly, CreateEntryPoints(assembly));
+    }
+
+    public void BroadcastRunLevel(ModRunLevel runLevel)
+    {
+        foreach (var (_, entryPoints) in EntryPoints)
+        {
+            foreach (var entry in entryPoints)
+            {
+                switch (runLevel)
+                {
+                    case ModRunLevel.PreInit:
+                        entry.PreInit();
+                        break;
+                    case ModRunLevel.Init:
+                        entry.Init();
+                        break;
+                    case ModRunLevel.PostInit:
+                        entry.PostInit();
+                        break;
+                    default:
+                        Sawmill.Error($"Unknown RunLevel: {runLevel}");
+                        break;
+                }
+            }
+        }
+    }
+
+    protected void ShutdownModules()
     {
         foreach (var (_,entryPoints) in _entryPoints)
         {
             foreach (var entryPoint in entryPoints)
             {
-                entryPoint.Shutdown(livereload);
                 entryPoint.Shutdown();
             }
 
@@ -130,11 +190,13 @@ internal abstract class RobustLoadContext<T>(string? name = null, bool supportsL
             }
         }
         _entryPoints.Clear();
+        ReloadingShutdown();
         TestingCallbacks.Clear();
     }
-
     public void Shutdown()
     {
-        UnloadModules(false);
+        ShutdownModules();
     }
+    partial void ReloadingShutdown();
+    partial void SetupReloadListener(RobustEntryPoint entry);
 }

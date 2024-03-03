@@ -11,20 +11,24 @@ using Robust.Shared.Log;
 using Robust.Shared.Utility;
 namespace Robust.Shared.Modules;
 
-internal sealed class ModuleInspector : IDisposable
+internal sealed partial class ModuleInspector : IDisposable
 {
     [Dependency] private readonly ILogManager _logManager = default!;
     [Dependency] private readonly ModuleManager _moduleManager = default!;
 
-    private ISawmill _sawmill = default!;
+    private readonly ISawmill _sawmill;
     private bool _checkSandbox;
-    internal  RobustAssemblyReference AsmRef { get; }
-    internal bool InvalidAssembly { get; private set; }
+    internal  RobustAssemblyRef AsmRef { get; }
+    internal bool InvalidAssembly => AsmRef.IsValid;
 
     internal delegate void InspectorFinalizedCallback();
     private readonly InspectorFinalizedCallback? _onFinalize;
 
-    internal ModuleInspector(string contentPrefix, bool checkSandbox, Stream asmStream, Stream? pdbStream = null, string? path = null,
+    internal ModuleInspector(string contentPrefix,
+        bool checkSandbox,
+        Stream asmStream,
+        Stream? pdbStream = null,
+        string? path = null,
         InspectorFinalizedCallback? onFinalize = null)
     {
         IoCManager.InjectDependencies(this);
@@ -53,32 +57,22 @@ internal sealed class ModuleInspector : IDisposable
             assemblyData = metaContext.LoadFromStream(tempStream);
         }
         //create an assembly reference class that stores all the assembly metadata we actually care about, so we can discard the rest!
-        AsmRef = new RobustAssemblyReference(_sawmill, assemblyData, asmStream,
-            contentPrefix, pdbStream, path);
+        AsmRef = new RobustAssemblyRef(_sawmill, assemblyData,
+            contentPrefix, asmStream ,pdbStream, path);
 
         bool coreAsmConflict = false;
         //check to make sure we aren't trying to load an assembly that will conflict with core engine!
-        if (_moduleManager.CoreContext.Assemblies.Any(p => p.GetName().Name! == AsmRef.ModuleId))
+        if (_moduleManager.CoreContext.Assemblies.Any(p => p.GetName().Name! == AsmRef.AssemblyName))
         {
             _sawmill.Error($"Assembly: {AsmRef.AssemblyName} with ID: {AsmRef.ModuleId} conflicts with a core engine assembly name!");
-            coreAsmConflict = true;
-            InvalidAssembly = true;
-        }
-        if (AsmRef.SupportsReloading)
-        {
-            InvalidAssembly |= _moduleManager.DynamicPendingAsmRefs.TryAdd(AsmRef.ModuleId, AsmRef)
-                              || _moduleManager.DynamicLoadedAsmRefs.ContainsKey(AsmRef.ModuleId);
-        }
-        else
-        {
-            InvalidAssembly |= _moduleManager.StaticPendingAsmRefs.TryAdd(AsmRef.ModuleId, AsmRef)
-                              || _moduleManager.StaticLoadedAsmRefs.ContainsKey(AsmRef.ModuleId);
+            AsmRef.AddError(RobustAssemblyRef.ErrorFlag.ModuleIdConflict);
         }
 
-        if (InvalidAssembly && !coreAsmConflict)
-        {
-            _sawmill.Error($"Assembly: {AsmRef.AssemblyName} is already loaded/pending load under id: {AsmRef.ModuleId}");
-        }
+        CheckAssemblyNameConflicts(_moduleManager.StaticContext);
+
+#if LIVE_RELOAD_ENABLED
+        CheckAssemblyNameConflicts(_moduleManager.DynamicContext);
+#endif
         //clean up the metaContext when we are done and unload the assembly reflection data
         metaContext.Dispose();
     }
@@ -93,6 +87,17 @@ internal sealed class ModuleInspector : IDisposable
             paths.Add(assembly.Location);
         }
         return new MetadataLoadContext(new PathAssemblyResolver(paths));
+    }
+
+    private void CheckAssemblyNameConflicts(RobustLoadContextBase loadContext)
+    {
+        if (InvalidAssembly
+            || AsmRef.Errors.HasFlag(RobustAssemblyRef.ErrorFlag.ModuleIdConflict)
+            || loadContext.LoadedAssemblies.All(p => p.Value.AssemblyName == AsmRef.AssemblyName)
+            || loadContext.PendingAssemblies.All(p => p.Value.AssemblyName == AsmRef.AssemblyName))
+            return;
+        _sawmill.Error($"Assembly: {AsmRef.AssemblyName} is already loaded/pending load under id: {AsmRef.ModuleId}");
+        AsmRef.AddError(RobustAssemblyRef.ErrorFlag.ModuleIdConflict);
     }
 
     internal bool Inspect()
