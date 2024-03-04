@@ -11,6 +11,8 @@ internal record RobustAsmStream : IDisposable
 {
     internal string AssemblyName { get; private set; }
 
+    internal string? Path { get; private set; }
+
     private Stream _validAsmStream = default!;
     //This is sanityChecked to make sure that it actually is an assembly stream and not some other random garbage
     internal Stream AssemblyStream
@@ -37,10 +39,11 @@ internal record RobustAsmStream : IDisposable
     internal bool IsValid { get; private set; } = true;
     internal bool HasPdb => _validPdbStream != null;
 
-    public RobustAsmStream(Stream AssemblyStream, Stream? PdbStream, bool copyStreams = false, bool throwIfInvalid = false)
+    public RobustAsmStream(Stream AssemblyStream, Stream? PdbStream, bool copyStreams = false, string? path = null, bool throwIfInvalid = false)
     {
         Stream asmSteam = AssemblyStream;
         Stream? pdbStream = PdbStream;
+        Path = path;
         if (copyStreams)
         {
             AssemblyStream.Position = 0;

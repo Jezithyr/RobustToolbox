@@ -11,5 +11,10 @@ internal sealed partial class ModuleInspector
     {
 
     }
+
+    partial void LiveReloadInitialization()
+    {
+        CheckAssemblyNameConflicts(_moduleManager.DynamicContext);
+    }
 }
 #endif

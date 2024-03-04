@@ -21,7 +21,7 @@ internal sealed partial class ModuleManager
     partial void LiveReload_Implementation()
     {
         if (MidReload)
-            _sawmill.Warning("Cannot start a live-reload while one is already in progress!");
+            Sawmill.Warning("Cannot start a live-reload while one is already in progress!");
         MidReload = true;
         //TODO Reloading stuff goes here
         FinishLiveReload(); //this will end up getting called by an event.

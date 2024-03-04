@@ -98,7 +98,7 @@ internal abstract partial class RobustLoadContextBase
     internal Assembly LoadFromAssemblyRef(RobustAssemblyRef asmRef)
     {
         var assembly = asmRef.IsVirtualAsm
-            ? LoadFromStream(asmRef.AsmStream, asmRef.PdbStream)
+            ? LoadFromStream(asmRef.AsmStreamHandle, asmRef.PdbStreamHandle)
             : LoadFromAssemblyPath(asmRef.AsmPath!);
         InitModule(assembly);
         return assembly;

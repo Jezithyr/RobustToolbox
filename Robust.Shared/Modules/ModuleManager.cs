@@ -31,14 +31,14 @@ internal sealed partial class ModuleManager
     internal string EnginePrefix { get; private set; } = string.Empty;
     private bool _sandboxingEnabled;
 
-    private ISawmill _sawmill = default!;
+    internal ISawmill Sawmill { get; private set; } = default!;
 
     private int _inspectorCount;
     internal int InspectorCount => _inspectorCount;
 
     public void Initialize()
     {
-        _sawmill = _logManager.GetSawmill("robust.mod");
+        Sawmill = _logManager.GetSawmill("robust.mod");
         StaticContext = new();
         InitializeReloadData();
     }
@@ -52,22 +52,33 @@ internal sealed partial class ModuleManager
     public void SetEnableSandboxing(bool sandboxing)
     {
         _sandboxingEnabled = sandboxing;
-        _sawmill.Debug("{0} sandboxing", sandboxing ? "ENABLING" : "DISABLING");
+        Sawmill.Debug("{0} sandboxing", sandboxing ? "ENABLING" : "DISABLING");
     }
 
 
     private ModuleInspector CreateNewInspector(ResPath asmPath)
     {
         Interlocked.Increment(ref _inspectorCount);
-        using var asmFile = _resourceManager.ContentFileRead(asmPath);
-        _resourceManager.TryContentFileRead(asmPath.WithExtension("pdb").CanonPath, out var pdbFile);
-        return new ModuleInspector(ContentPrefix, _sandboxingEnabled, asmFile, pdbFile, asmPath.CanonPath, InspectorClosed);
+        using var asmStream = _resourceManager.ContentFileRead(asmPath);
+        _resourceManager.TryContentFileRead(asmPath.WithExtension("pdb").CanonPath, out var pdbStream);
+
+        return new ModuleInspector(
+            ContentPrefix,
+            _sandboxingEnabled,
+            false,
+            new RobustAsmStream(asmStream, pdbStream),
+            InspectorClosed);
     }
 
     private ModuleInspector CreateNewInspector(Stream asmStream, Stream? pdbStream)
     {
         Interlocked.Increment(ref _inspectorCount);
-        return new ModuleInspector(ContentPrefix, _sandboxingEnabled, asmStream, pdbStream, onFinalize: InspectorClosed);
+        return new ModuleInspector(
+            ContentPrefix,
+            _sandboxingEnabled,
+            false,
+            new RobustAsmStream(asmStream, pdbStream),
+            InspectorClosed);
     }
 
     private void InspectorClosed()
