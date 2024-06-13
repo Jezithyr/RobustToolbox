@@ -21,62 +21,55 @@ public sealed partial class GameTelemetryManager : IPostInjectInit
     private List<GameTelemetryController> _configs = new();
     public void Initialize()
     {
-        _sawmill.Info("Initializing...");
+        _sawmill.Debug("Initializing...");
         SetupImplementation();
 
         SetRegistrationLock(false);
-        _sawmill.Info("Unlocking Registrations");
-        _sawmill.Info("Initializing Controllers");
+        _sawmill.Debug("Unlocking Registrations. Initializing Controllers");
         foreach (var controller in _configs)
         {
             controller.Initialize();
-            _sawmill.Info($"{controller.GetType()}: Loaded");
+            _sawmill.Verbose($"{controller.GetType().Name}: Loaded");
         }
-        _sawmill.Info("Complete");
-        _sawmill.Info("=====================");
-        _sawmill.Info("Initializing Handlers");
+        _sawmill.Debug("Complete. Initializing Handlers");
         foreach (var (_, handler) in _handlers)
         {
             handler.Initialize(_configs);
-            _sawmill.Info($"{handler.GetType()}: Loaded");
+            _sawmill.Verbose($"{handler.GetType().Name}: Loaded");
         }
         SetRegistrationLock();
-        _sawmill.Info("Complete");
-        _sawmill.Info("=====================");
-        _sawmill.Info("Locking Registrations");
-        _sawmill.Info("Initialization Complete...");
+        _sawmill.Debug("Completed. Locking Registrations. Initialization Complete...");
+
     }
 
     public T GetHandler<T>() where T : GameTelemetryHandler, new() => (T)_handlers[typeof(T)];
 
     private void SetupImplementation()
     {
-        _sawmill.Info("Finding Controllers...");
+        _sawmill.Debug("Finding Controllers...");
         foreach (var type in _reflectionManager.GetAllChildren<GameTelemetryController>())
         {
             if (type.IsAbstract)
                 continue;
             var sensorConfig = (GameTelemetryController)_typeFactory.CreateInstanceUnchecked(type);
-            _sawmill.Info($"Found {type}, creating...");
+            _sawmill.Verbose($"Found {type.Name}, creating...");
             IoCManager.InjectDependencies(sensorConfig);
             _configs.Add(sensorConfig);
         }
-        _sawmill.Info($"Complete. {_configs.Count} Controllers Created.");
-        _sawmill.Info("=====================");
-        _sawmill.Info("Finding Handlers...");
+        _sawmill.Debug($"Complete. {_configs.Count} Controllers Created. Finding Handlers...");
         foreach (var type in _reflectionManager.GetAllChildren<GameTelemetryHandler>())
         {
             if (type.IsAbstract)
                 continue;
             var sensingHandler = (GameTelemetryHandler)_typeFactory.CreateInstanceUnchecked(type);
-            _sawmill.Info($"Found {type}, creating...");
+            _sawmill.Verbose($"Found {type.Name}, creating...");
             IoCManager.InjectDependencies(sensingHandler);
             _handlers.Add(type, sensingHandler);
         }
-        _sawmill.Info($"Complete. {_configs.Count} Handlers Created.");
+        _sawmill.Debug($"Complete. {_configs.Count} Handlers Created.");
     }
     public void PostInject()
     {
-        _logManager.GetSawmill(LogName);
+        _sawmill = _logManager.GetSawmill(LogName);
     }
 }
