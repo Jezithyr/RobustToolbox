@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Robust.Shared.Collections;
 using Robust.Shared.GameObjects;
 using Robust.Shared.IoC;
@@ -10,7 +11,7 @@ using Robust.Shared.Utility;
 
 namespace Robust.Shared.GameSensing;
 
-public sealed partial class GameSensingManager : IPostInjectInit
+public sealed partial class GameSensorManager : IPostInjectInit
 {
     [Dependency] private IReflectionManager _reflectionManager = default!;
     [Dependency] private IDynamicTypeFactoryInternal _typeFactory = default!;
@@ -21,24 +22,32 @@ public sealed partial class GameSensingManager : IPostInjectInit
     public const string DefaultCategory = "unsorted";
     public const string LogName = "rtgs";
     private ISawmill _sawmill = default!;
-    private GameSensorSource _localityMask = GameSensorSource.Server;
-    private ValueList<GameSensorConfig> _configs = new();
+    private SensorOrigin _localityMask = SensorOrigin.Networked;
+    private SensorOrigin _netMask = SensorOrigin.Local;
+    private List<GameSensorConfig> _configs = new();
     public void Initialize()
     {
         if (_netManager.IsClient)
-            _localityMask = GameSensorSource.Client;
+        {
+            _localityMask = SensorOrigin.Local;
+            _netMask = SensorOrigin.Networked;
+        }
         SetupConfigs();
         SetupHandlers();
 
-        _registrationLock = false;
+        SetRegistrationLock(false);
+        foreach (var config in _configs)
+        {
+            config.Initialize(_logManager.GetSawmill($"{LogName}.{config.GetType()}"), _netManager.IsServer);
+        }
         foreach (var (type, handler) in _handlers)
         {
-            handler.Initialize(_logManager.GetSawmill($"{LogName}.{type}"), _netManager.IsServer, _configs.ToArray());
+            handler.Initialize(_logManager.GetSawmill($"{LogName}.{type}"), _netManager.IsServer, _configs);
         }
-        _registrationLock = true;
+        SetRegistrationLock();
     }
 
-    public T GetHandler<T>() where T : GameSensingHandler, new() => (T)_handlers[typeof(T)];
+    public T GetHandler<T>() where T : GameSensorHandler, new() => (T)_handlers[typeof(T)];
 
     private void SetupConfigs()
     {
@@ -53,11 +62,11 @@ public sealed partial class GameSensingManager : IPostInjectInit
 
     private void SetupHandlers()
     {
-        foreach (var type in _reflectionManager.GetAllChildren<GameSensingHandler>())
+        foreach (var type in _reflectionManager.GetAllChildren<GameSensorHandler>())
         {
             if (type.IsAbstract)
                 continue;
-            var sensingHandler = (GameSensingHandler)_typeFactory.CreateInstanceUnchecked(type);
+            var sensingHandler = (GameSensorHandler)_typeFactory.CreateInstanceUnchecked(type);
             _handlers.Add(type, sensingHandler);
         }
 
@@ -71,12 +80,19 @@ public sealed partial class GameSensingManager : IPostInjectInit
 
 public abstract class GameSensorConfig
 {
-    [Dependency] protected GameSensingManager SensingManager = default!;
+    [Dependency] protected GameSensorManager SensorManager = default!;
 
     protected ISawmill Sawmill = default!;
-    protected GameSensorSource LocalityMask = GameSensorSource.Client;
+    protected SensorOrigin Locality = SensorOrigin.Local;
 
-    internal readonly Dictionary<Type,Dictionary<GameSensorId,GameSensorSource>> SensorIds = new();
+    private readonly Dictionary<Type,List<SensorId>> _sensorIds = new();
+
+    internal bool TryGetSensorIds(Type type,[NotNullWhen(true)] out List<SensorId>? sensorIds)
+    {
+        return _sensorIds.TryGetValue(type, out sensorIds);
+    }
+
+
 
     protected bool IsServer { get; private set; }
     internal void Initialize(ISawmill sawmill, bool isServer)
@@ -84,17 +100,20 @@ public abstract class GameSensorConfig
         Sawmill = sawmill;
         if (!isServer) return;
         IsServer = true;
-        LocalityMask = GameSensorSource.Server;
+        Locality = SensorOrigin.Networked;
         RegisterIds(isServer);
     }
 
-    protected void RegId<T>(GameSensorId sensorId, GameSensorSource locality = GameSensorSource.Both) where T: IGameSensorArgs, new()
+
+    protected void RegId<T>(SensorId sensorId) where T: ISensorArgs, new()
     {
-        SensingManager.RegisterHandler(sensorId, typeof(T), out _);
-        SensorIds.GetOrNew(typeof(T)).Add(sensorId, locality);
+        RegId<T>(sensorId, Locality);
     }
-
-
+    protected void RegId<T>(SensorId sensorId, SensorOrigin locality) where T: ISensorArgs, new()
+    {
+        SensorManager.RegisterSensorId(sensorId, typeof(T), locality, out _);
+        _sensorIds.GetOrNew(typeof(T)).Add(sensorId);
+    }
     protected abstract void RegisterIds(bool isServer);
 
 }
