@@ -22,7 +22,7 @@ public abstract class GameTelemetryHandler
     protected void SubscribeAllListeners<T>(
         GameTelemetryListener<T> telemetryListener,
         bool startEnabled = true,
-        params GameTelemetryId[] ignoreList) where T: IGameTelemetryArgs, new()
+        params GameTelemetryId[] ignoreList) where T: notnull
     {
         foreach (var config in _configs)
         {
@@ -60,7 +60,7 @@ public abstract class GameTelemetryHandler
         GameTelemetryId id,
         GameTelemetryListener<T> eventListener,
         bool startEnabled = true)
-        where T : IGameTelemetryArgs, new()
+        where T : notnull
     {
         TelemetryManager.SubscribeSensor<T>(
             id,
@@ -78,7 +78,7 @@ public abstract class GameTelemetryHandler
         GameTelemetryId id,
         GameTelemetryRefHandler<T> eventHandler,
         bool startEnabled = true)
-        where T : IGameTelemetryArgs, new()
+        where T : notnull
     {
         TelemetryManager.SubscribeSensor<T>(
             id,
@@ -96,7 +96,7 @@ public abstract class GameTelemetryHandler
         GameTelemetryId id,
         GameTelemetryListener<T> eventListener,
         bool startEnabled = true)
-        where T : IGameTelemetryArgs, new()
+        where T : notnull
     {
         TelemetryManager.SubscribeNetSensor<T>(
             id,
@@ -114,7 +114,7 @@ public abstract class GameTelemetryHandler
         GameTelemetryId id,
         GameTelemetryRefHandler<T> eventHandler,
         bool startEnabled = true)
-        where T : IGameTelemetryArgs, new()
+        where T : notnull
     {
         TelemetryManager.SubscribeNetSensor<T>(
             id,

@@ -13,7 +13,7 @@ public sealed partial class GameTelemetryManager
         bool byRef,
         bool startEnabled
     )
-        where T : IGameTelemetryArgs, new()
+        where T : notnull
     {
         //TODO: STUB IMPLEMENT NET EVENTS
     }

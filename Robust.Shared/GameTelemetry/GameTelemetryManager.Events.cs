@@ -36,21 +36,21 @@ public sealed partial class GameTelemetryManager
             : _eventDataUnfrozen.TryGetValue((type, id), out subs);
     }
 
-    public void RaiseEvent<T>(GameTelemetryId gameTelemetryId, T args) where T : IGameTelemetryArgs, new()
+    public void RaiseEvent<T>(GameTelemetryId gameTelemetryId, T args) where T : notnull
     {
         if (!_eventData.TryGetValue((typeof(T), gameTelemetryId), out var sensorData))
             return;
         RaiseEventBase(gameTelemetryId, sensorData.Origin, sensorData, ref args);
     }
 
-    public void RaiseEvent<T>(GameTelemetryId gameTelemetryId,  ref T args) where T : IGameTelemetryArgs, new()
+    public void RaiseEvent<T>(GameTelemetryId gameTelemetryId,  ref T args) where T : notnull
     {
         if (!_eventData.TryGetValue((typeof(T), gameTelemetryId), out var sensorData))
             return;
         RaiseEventBase(gameTelemetryId, sensorData.Origin, sensorData, ref args);
     }
 
-    public void RaiseEvent<T>(GameTelemetryId gameTelemetryId, SensorOrigin origin, T args) where T : IGameTelemetryArgs, new()
+    public void RaiseEvent<T>(GameTelemetryId gameTelemetryId, SensorOrigin origin, T args) where T : notnull
     {
         if (!_eventData.TryGetValue((typeof(T), gameTelemetryId), out var sensorData)
             || !sensorData.Origin.HasFlag(SensorOrigin.Local))
@@ -58,7 +58,7 @@ public sealed partial class GameTelemetryManager
         RaiseEventBase(gameTelemetryId, origin, sensorData, ref args);
     }
 
-    public void RaiseEvent<T>(GameTelemetryId gameTelemetryId, SensorOrigin origin, ref T args) where T : IGameTelemetryArgs, new()
+    public void RaiseEvent<T>(GameTelemetryId gameTelemetryId, SensorOrigin origin, ref T args) where T : notnull
     {
         if (!_eventData.TryGetValue((typeof(T), gameTelemetryId), out var sensorData)
             || !sensorData.Origin.HasFlag(SensorOrigin.Local))
@@ -67,7 +67,7 @@ public sealed partial class GameTelemetryManager
     }
 
     private void RaiseEventBase<T>(GameTelemetryId gameTelemetryId, SensorOrigin origin,SensorData sensorData, ref T args)
-        where T : IGameTelemetryArgs, new()
+        where T : notnull
     {
         switch (origin)
         {
@@ -135,7 +135,7 @@ public sealed partial class GameTelemetryManager
         bool byRef,
         bool startEnabled
     )
-        where T : IGameTelemetryArgs, new()
+        where T : notnull
     {
         ArgumentNullException.ThrowIfNull(eventListener);
         var eventType = typeof(T);

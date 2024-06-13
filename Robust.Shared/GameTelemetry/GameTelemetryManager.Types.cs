@@ -86,12 +86,9 @@ internal struct Unit;
         }
     }
 
-public delegate void GameTelemetryRefHandler<T>(GameTelemetryId id,ref T ev) where T : IGameTelemetryArgs, new();
+public delegate void GameTelemetryRefHandler<T>(GameTelemetryId id,ref T ev) where T : notnull;
 
-public delegate void GameTelemetryListener<T>(GameTelemetryId id,T ev) where T : IGameTelemetryArgs, new();
-
-[UsedImplicitly]
-public interface IGameTelemetryArgs;
+public delegate void GameTelemetryListener<T>(GameTelemetryId id,T ev) where T : notnull;
 
 [Flags]
 public enum SensorOrigin : byte
