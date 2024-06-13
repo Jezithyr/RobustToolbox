@@ -2,21 +2,23 @@
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Robust.Shared.Log;
+using Robust.Shared.Network;
+
 namespace Robust.Shared.GameTelemetry;
 
 public abstract class GameTelemetryHandler
 {
     [IoC.Dependency] protected GameTelemetryManager TelemetryManager = default!;
+    [IoC.Dependency] protected INetManager NetManager = default!;
+    [IoC.Dependency] protected ILogManager LogManager = default!;
     protected ISawmill Sawmill = default!;
-    private List<GameTelemetryConfig> _configs = default!;
-    protected bool IsServer { get; private set; }
+    private List<GameTelemetryController> _configs = default!;
 
-    internal void Initialize(ISawmill sawmill, bool isServer, List<GameTelemetryConfig> configs)
+    internal void Initialize(List<GameTelemetryController> configs)
     {
-        Sawmill = sawmill;
+        Sawmill = LogManager.GetSawmill($"{GameTelemetryManager.LogName}.{GetType()}");
         _configs = configs;
-        IsServer = isServer;
-        RegisterHandlers(isServer);
+        RegisterHandlers(NetManager.IsServer);
     }
 
     protected void SubscribeAllListeners<T>(
@@ -26,7 +28,7 @@ public abstract class GameTelemetryHandler
     {
         foreach (var config in _configs)
         {
-            if (!config.TryGetSensorIds(typeof(T), out var data))
+            if (!config.TryGetTelemetryIds(typeof(T), out var data))
                 continue;
             foreach (var sensorId in data)
             {

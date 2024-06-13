@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Collections.Generic;
 using Robust.Shared.GameObjects;
 using Robust.Shared.IoC;
 using Robust.Shared.Log;
 using Robust.Shared.Network;
 using Robust.Shared.Reflection;
-using Robust.Shared.Utility;
 
 namespace Robust.Shared.GameTelemetry;
 
@@ -19,99 +16,67 @@ public sealed partial class GameTelemetryManager : IPostInjectInit
     [Dependency] private IEntityNetworkManager _networkManager = default!;
 
     public const string DefaultCategory = "unsorted";
-    public const string LogName = "rtgs";
+    public const string LogName = "rtgt";
     private ISawmill _sawmill = default!;
-    private SensorOrigin _localityMask = SensorOrigin.Networked;
-    private SensorOrigin _netMask = SensorOrigin.Local;
-    private List<GameTelemetryConfig> _configs = new();
+    private List<GameTelemetryController> _configs = new();
     public void Initialize()
     {
-        if (_netManager.IsClient)
-        {
-            _localityMask = SensorOrigin.Local;
-            _netMask = SensorOrigin.Networked;
-        }
-        SetupConfigs();
-        SetupHandlers();
+        _sawmill.Info("Initializing...");
+        SetupImplementation();
 
         SetRegistrationLock(false);
-        foreach (var config in _configs)
+        _sawmill.Info("Unlocking Registrations");
+        _sawmill.Info("Initializing Controllers");
+        foreach (var controller in _configs)
         {
-            config.Initialize(_logManager.GetSawmill($"{LogName}.{config.GetType()}"), _netManager.IsServer);
+            controller.Initialize();
+            _sawmill.Info($"{controller.GetType()}: Loaded");
         }
-        foreach (var (type, handler) in _handlers)
+        _sawmill.Info("Complete");
+        _sawmill.Info("=====================");
+        _sawmill.Info("Initializing Handlers");
+        foreach (var (_, handler) in _handlers)
         {
-            handler.Initialize(_logManager.GetSawmill($"{LogName}.{type}"), _netManager.IsServer, _configs);
+            handler.Initialize(_configs);
+            _sawmill.Info($"{handler.GetType()}: Loaded");
         }
         SetRegistrationLock();
+        _sawmill.Info("Complete");
+        _sawmill.Info("=====================");
+        _sawmill.Info("Locking Registrations");
+        _sawmill.Info("Initialization Complete...");
     }
 
     public T GetHandler<T>() where T : GameTelemetryHandler, new() => (T)_handlers[typeof(T)];
 
-    private void SetupConfigs()
+    private void SetupImplementation()
     {
-        foreach (var type in _reflectionManager.GetAllChildren<GameTelemetryConfig>())
+        _sawmill.Info("Finding Controllers...");
+        foreach (var type in _reflectionManager.GetAllChildren<GameTelemetryController>())
         {
             if (type.IsAbstract)
                 continue;
-            var sensorConfig = (GameTelemetryConfig)_typeFactory.CreateInstanceUnchecked(type);
+            var sensorConfig = (GameTelemetryController)_typeFactory.CreateInstanceUnchecked(type);
+            _sawmill.Info($"Found {type}, creating...");
             IoCManager.InjectDependencies(sensorConfig);
             _configs.Add(sensorConfig);
         }
-    }
-
-    private void SetupHandlers()
-    {
+        _sawmill.Info($"Complete. {_configs.Count} Controllers Created.");
+        _sawmill.Info("=====================");
+        _sawmill.Info("Finding Handlers...");
         foreach (var type in _reflectionManager.GetAllChildren<GameTelemetryHandler>())
         {
             if (type.IsAbstract)
                 continue;
             var sensingHandler = (GameTelemetryHandler)_typeFactory.CreateInstanceUnchecked(type);
+            _sawmill.Info($"Found {type}, creating...");
             IoCManager.InjectDependencies(sensingHandler);
             _handlers.Add(type, sensingHandler);
         }
-
+        _sawmill.Info($"Complete. {_configs.Count} Handlers Created.");
     }
-
     public void PostInject()
     {
         _logManager.GetSawmill(LogName);
     }
-}
-
-public abstract class GameTelemetryConfig
-{
-    [Dependency] protected GameTelemetryManager TelemetryManager = default!;
-
-    protected ISawmill Sawmill = default!;
-
-    private readonly Dictionary<Type,List<GameTelemetryId>> _sensorIds = new();
-
-    internal bool TryGetSensorIds(Type type,[NotNullWhen(true)] out List<GameTelemetryId>? sensorIds)
-    {
-        return _sensorIds.TryGetValue(type, out sensorIds);
-    }
-
-
-
-    protected bool IsServer { get; private set; }
-    internal void Initialize(ISawmill sawmill, bool isServer)
-    {
-        Sawmill = sawmill;
-        LoadIds(isServer);
-    }
-
-
-    protected void RegId<T>(string name, string category = GameTelemetryManager.DefaultCategory) where T: IGameTelemetryArgs, new()
-    {
-        RegId<T>((name, category));
-    }
-
-    protected void RegId<T>(GameTelemetryId gameTelemetryId, SensorOrigin locality = SensorOrigin.Local) where T: IGameTelemetryArgs, new()
-    {
-        TelemetryManager.RegisterSensorId(gameTelemetryId, typeof(T), locality, out _);
-        _sensorIds.GetOrNew(typeof(T)).Add(gameTelemetryId);
-    }
-    protected abstract void LoadIds(bool isServer);
-
 }
