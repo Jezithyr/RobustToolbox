@@ -2,7 +2,7 @@ using Robust.Shared.Asynchronous;
 using Robust.Shared.ContentPack;
 using Robust.Shared.Exceptions;
 using Robust.Shared.GameObjects;
-using Robust.Shared.GameSensing;
+using Robust.Shared.GameTelemetry;
 using Robust.Shared.IoC;
 using Robust.Shared.Localization;
 using Robust.Shared.Log;
@@ -49,7 +49,7 @@ namespace Robust.Shared
             deps.Register<ToolshedManager>();
             deps.Register<HttpClientHolder>();
             deps.Register<RobustMemoryManager>();
-            deps.Register<GameSensorManager>();
+            deps.Register<GameTelemetryManager>();
         }
     }
 }

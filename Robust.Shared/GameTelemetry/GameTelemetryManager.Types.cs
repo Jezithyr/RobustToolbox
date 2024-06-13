@@ -3,30 +3,30 @@ using JetBrains.Annotations;
 using Robust.Shared.Collections;
 using Robust.Shared.Serialization;
 
-namespace Robust.Shared.GameSensing;
+namespace Robust.Shared.GameTelemetry;
 
 
 [Serializable, NetSerializable]
-public record struct SensorId
+public record struct GameTelemetryId
 {
     public readonly string Name;
     public readonly string Category;
     public readonly int Hash;
-    SensorId(string name, string category = GameSensorManager.DefaultCategory)
+    GameTelemetryId(string name, string category = GameTelemetryManager.DefaultCategory)
     {
         Name = name;
         Category = category;
         Hash = HashCode.Combine(Name, Category);
     }
 
-    public bool Equals(SensorId other) => other.Hash == Hash;
+    public bool Equals(GameTelemetryId other) => other.Hash == Hash;
 
     public override int GetHashCode() => Hash;
 
-    public static implicit operator (string, string)(SensorId id) => (id.Category, id.Name);
-    public static implicit operator SensorId((string,string) id) => new(id.Item2, id.Item1);
-    public static implicit operator SensorId(string id) => new(id);
-    public static implicit operator string(SensorId id) => $"{id.Category}:{id.Name}";
+    public static implicit operator (string, string)(GameTelemetryId id) => (id.Category, id.Name);
+    public static implicit operator GameTelemetryId((string,string) id) => new(id.Item2, id.Item1);
+    public static implicit operator GameTelemetryId(string id) => new(id);
+    public static implicit operator string(GameTelemetryId id) => $"{id.Category}:{id.Name}";
     public override string ToString() => $"{Category}:{Name}";
 }
 
@@ -86,12 +86,12 @@ internal struct Unit;
         }
     }
 
-public delegate void GameSensorRefHandler<T>(ref T ev) where T : ISensorArgs, new();
+public delegate void GameTelemetryRefHandler<T>(GameTelemetryId id,ref T ev) where T : IGameTelemetryArgs, new();
 
-public delegate void GameSensorListener<T>(T ev) where T : ISensorArgs, new();
+public delegate void GameTelemetryListener<T>(GameTelemetryId id,T ev) where T : IGameTelemetryArgs, new();
 
 [UsedImplicitly]
-public interface ISensorArgs;
+public interface IGameTelemetryArgs;
 
 [Flags]
 public enum SensorOrigin : byte

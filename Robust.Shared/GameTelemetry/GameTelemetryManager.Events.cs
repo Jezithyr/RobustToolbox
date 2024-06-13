@@ -7,9 +7,9 @@ using Robust.Shared.Collections;
 using Robust.Shared.GameObjects;
 using Robust.Shared.Utility;
 
-namespace Robust.Shared.GameSensing;
+namespace Robust.Shared.GameTelemetry;
 
-public sealed partial class GameSensorManager
+public sealed partial class GameTelemetryManager
 {
     private bool _registrationLock = true; //prevent skill issues with registration
 
@@ -17,9 +17,9 @@ public sealed partial class GameSensorManager
         FrozenDictionary<SensorType, SensorData>.Empty;
     private readonly Dictionary<SensorType, SensorData> _eventDataUnfrozen = new();
 
-    private readonly Dictionary<Type,GameSensorHandler> _handlers = new();
+    private readonly Dictionary<Type,GameTelemetryHandler> _handlers = new();
 
-    internal void RegisterSensorId(SensorId id, Type type, SensorOrigin origin, out SensorData subs)
+    internal void RegisterSensorId(GameTelemetryId id, Type type, SensorOrigin origin, out SensorData subs)
     {
         if (origin == SensorOrigin.None)
             throw new ArgumentException($"Sensor {id} has an invalid source value!");
@@ -29,42 +29,56 @@ public sealed partial class GameSensorManager
         subs.Origin = origin;
     }
 
-    internal bool TryGetSensorData(SensorId id, Type type, [NotNullWhen(true)] out SensorData? subs)
+    internal bool TryGetSensorData(GameTelemetryId id, Type type, [NotNullWhen(true)] out SensorData? subs)
     {
         return _registrationLock
             ? _eventData.TryGetValue((type, id), out subs)
             : _eventDataUnfrozen.TryGetValue((type, id), out subs);
     }
 
-
-    private void TriggerSensor<T>(SensorId sensorId,  ref T args) where T : ISensorArgs, new()
+    public void RaiseEvent<T>(GameTelemetryId gameTelemetryId, T args) where T : IGameTelemetryArgs, new()
     {
-        if (!_eventData.TryGetValue((typeof(T), sensorId), out var sensorData))
+        if (!_eventData.TryGetValue((typeof(T), gameTelemetryId), out var sensorData))
             return;
-        TriggerSensorBase(sensorId, sensorData.Origin, sensorData, ref args);
+        RaiseEventBase(gameTelemetryId, sensorData.Origin, sensorData, ref args);
     }
 
-    private void TriggerSensor<T>(SensorId sensorId, SensorOrigin origin, ref T args) where T : ISensorArgs, new()
+    public void RaiseEvent<T>(GameTelemetryId gameTelemetryId,  ref T args) where T : IGameTelemetryArgs, new()
     {
-        if (!_eventData.TryGetValue((typeof(T), sensorId), out var sensorData)
+        if (!_eventData.TryGetValue((typeof(T), gameTelemetryId), out var sensorData))
+            return;
+        RaiseEventBase(gameTelemetryId, sensorData.Origin, sensorData, ref args);
+    }
+
+    public void RaiseEvent<T>(GameTelemetryId gameTelemetryId, SensorOrigin origin, T args) where T : IGameTelemetryArgs, new()
+    {
+        if (!_eventData.TryGetValue((typeof(T), gameTelemetryId), out var sensorData)
             || !sensorData.Origin.HasFlag(SensorOrigin.Local))
             return;
-        TriggerSensorBase(sensorId, origin, sensorData, ref args);
+        RaiseEventBase(gameTelemetryId, origin, sensorData, ref args);
     }
 
-    private void TriggerSensorBase<T>(SensorId sensorId, SensorOrigin origin,SensorData sensorData, ref T args)
-        where T : ISensorArgs, new()
+    public void RaiseEvent<T>(GameTelemetryId gameTelemetryId, SensorOrigin origin, ref T args) where T : IGameTelemetryArgs, new()
+    {
+        if (!_eventData.TryGetValue((typeof(T), gameTelemetryId), out var sensorData)
+            || !sensorData.Origin.HasFlag(SensorOrigin.Local))
+            return;
+        RaiseEventBase(gameTelemetryId, origin, sensorData, ref args);
+    }
+
+    private void RaiseEventBase<T>(GameTelemetryId gameTelemetryId, SensorOrigin origin,SensorData sensorData, ref T args)
+        where T : IGameTelemetryArgs, new()
     {
         switch (origin)
         {
             case SensorOrigin.Local:
-                TriggerSensorBase( ref Unsafe.As<T, Unit>(ref args), sensorData.EnabledSensors);
+                RaiseEventBase( ref Unsafe.As<T, Unit>(ref args), sensorData.EnabledSensors);
                 return;
             case SensorOrigin.Networked:
                 //TriggerNetSensorBase( ref Unsafe.As<T, Unit>(ref args), sensorData.EnabledSensors);
                 return;
             case SensorOrigin.Both:
-                TriggerSensorBase( ref Unsafe.As<T, Unit>(ref args), sensorData.EnabledSensors);
+                RaiseEventBase( ref Unsafe.As<T, Unit>(ref args), sensorData.EnabledSensors);
                 //TriggerNetSensorBase( ref Unsafe.As<T, Unit>(ref args), sensorData.EnabledSensors);
                 return;
         }
@@ -82,7 +96,7 @@ public sealed partial class GameSensorManager
         }
     }
 
-    private static void TriggerSensorBase(
+    private static void RaiseEventBase(
         ref Unit unitRef,
         ValueList<SensorListener> subs)
     {
@@ -99,9 +113,9 @@ public sealed partial class GameSensorManager
     }
 
 
-    private record struct SensorType(Type ArgType, SensorId Id)
+    private record struct SensorType(Type ArgType, GameTelemetryId Id)
     {
-        public static implicit operator SensorType((Type,SensorId) data) => new(data.Item1, data.Item2);
+        public static implicit operator SensorType((Type,GameTelemetryId) data) => new(data.Item1, data.Item2);
 
         public bool Equals(SensorType other)
         {
@@ -115,13 +129,13 @@ public sealed partial class GameSensorManager
     }
 
     internal void SubscribeSensor<T>(
-        SensorId id,
+        GameTelemetryId id,
         SensorOrigin origin,
         SensorRefListener eventListener,
         bool byRef,
         bool startEnabled
     )
-        where T : ISensorArgs, new()
+        where T : IGameTelemetryArgs, new()
     {
         ArgumentNullException.ThrowIfNull(eventListener);
         var eventType = typeof(T);

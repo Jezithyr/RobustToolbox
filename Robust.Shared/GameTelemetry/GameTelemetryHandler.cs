@@ -2,18 +2,16 @@
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Robust.Shared.Log;
-using static Robust.Shared.GameSensing.GameSensorManager;
-namespace Robust.Shared.GameSensing;
+namespace Robust.Shared.GameTelemetry;
 
-public abstract class GameSensorHandler
+public abstract class GameTelemetryHandler
 {
-    [IoC.Dependency] protected GameSensorManager SensorManager = default!;
+    [IoC.Dependency] protected GameTelemetryManager TelemetryManager = default!;
     protected ISawmill Sawmill = default!;
-    private SensorOrigin _localityMask = SensorOrigin.Networked;
-    private List<GameSensorConfig> _configs = default!;
+    private List<GameTelemetryConfig> _configs = default!;
     protected bool IsServer { get; private set; }
 
-    internal void Initialize(ISawmill sawmill, bool isServer, List<GameSensorConfig> configs)
+    internal void Initialize(ISawmill sawmill, bool isServer, List<GameTelemetryConfig> configs)
     {
         Sawmill = sawmill;
         _configs = configs;
@@ -22,9 +20,9 @@ public abstract class GameSensorHandler
     }
 
     protected void SubscribeAllListeners<T>(
-        GameSensorListener<T> sensorListener,
+        GameTelemetryListener<T> telemetryListener,
         bool startEnabled = true,
-        params SensorId[] ignoreList) where T: ISensorArgs, new()
+        params GameTelemetryId[] ignoreList) where T: IGameTelemetryArgs, new()
     {
         foreach (var config in _configs)
         {
@@ -32,7 +30,7 @@ public abstract class GameSensorHandler
                 continue;
             foreach (var sensorId in data)
             {
-                if (ignoreList.Contains(sensorId) || !SensorManager.TryGetSensorData(sensorId, typeof(T), out var sensorData))
+                if (ignoreList.Contains(sensorId) || !TelemetryManager.TryGetSensorData(sensorId, typeof(T), out var sensorData))
                     continue;
 
                 switch (sensorData.Origin)
@@ -40,14 +38,14 @@ public abstract class GameSensorHandler
                     case SensorOrigin.None:
                         continue;
                     case SensorOrigin.Local:
-                        Sub(sensorId, sensorListener, startEnabled);
+                        SubscribeSensor(sensorId, telemetryListener, startEnabled);
                         continue;
                     case SensorOrigin.Networked:
-                        NetSub(sensorId, sensorListener, startEnabled);
+                        SubscribeNetSensor(sensorId, telemetryListener, startEnabled);
                         continue;
                     case SensorOrigin.Both:
-                        Sub(sensorId, sensorListener, startEnabled);
-                        NetSub(sensorId, sensorListener, startEnabled);
+                        SubscribeSensor(sensorId, telemetryListener, startEnabled);
+                        SubscribeNetSensor(sensorId, telemetryListener, startEnabled);
                         continue;
                 }
             }
@@ -58,73 +56,73 @@ public abstract class GameSensorHandler
 
 
 
-    protected void Sub<T>(
-        SensorId id,
-        GameSensorListener<T> eventListener,
+    protected void SubscribeSensor<T>(
+        GameTelemetryId id,
+        GameTelemetryListener<T> eventListener,
         bool startEnabled = true)
-        where T : ISensorArgs, new()
+        where T : IGameTelemetryArgs, new()
     {
-        SensorManager.SubscribeSensor<T>(
+        TelemetryManager.SubscribeSensor<T>(
             id,
             SensorOrigin.Local,
             (ref Unit ev) =>
             {
                 ref var tev = ref Unsafe.As<Unit, T>(ref ev);
-                eventListener(tev);
+                eventListener(id,tev);
             },
             true,
             startEnabled);
     }
 
-    protected void Sub<T>(
-        SensorId id,
-        GameSensorRefHandler<T> eventHandler,
+    protected void SubscribeSensor<T>(
+        GameTelemetryId id,
+        GameTelemetryRefHandler<T> eventHandler,
         bool startEnabled = true)
-        where T : ISensorArgs, new()
+        where T : IGameTelemetryArgs, new()
     {
-        SensorManager.SubscribeSensor<T>(
+        TelemetryManager.SubscribeSensor<T>(
             id,
             SensorOrigin.Local,
             (ref Unit ev) =>
             {
                 ref var tev = ref Unsafe.As<Unit, T>(ref ev);
-                eventHandler(ref tev);
+                eventHandler(id, ref tev);
             },
             true,
             startEnabled);
     }
 
-    protected void NetSub<T>(
-        SensorId id,
-        GameSensorListener<T> eventListener,
+    protected void SubscribeNetSensor<T>(
+        GameTelemetryId id,
+        GameTelemetryListener<T> eventListener,
         bool startEnabled = true)
-        where T : ISensorArgs, new()
+        where T : IGameTelemetryArgs, new()
     {
-        SensorManager.SubscribeNetSensor<T>(
+        TelemetryManager.SubscribeNetSensor<T>(
             id,
             SensorOrigin.Networked,
             (ref Unit ev) =>
             {
                 ref var tev = ref Unsafe.As<Unit, T>(ref ev);
-                eventListener(tev);
+                eventListener(id, tev);
             },
             true,
             startEnabled);
     }
 
-    protected void NetSub<T>(
-        SensorId id,
-        GameSensorRefHandler<T> eventHandler,
+    protected void SubscribeNetSensor<T>(
+        GameTelemetryId id,
+        GameTelemetryRefHandler<T> eventHandler,
         bool startEnabled = true)
-        where T : ISensorArgs, new()
+        where T : IGameTelemetryArgs, new()
     {
-        SensorManager.SubscribeNetSensor<T>(
+        TelemetryManager.SubscribeNetSensor<T>(
             id,
             SensorOrigin.Networked,
             (ref Unit ev) =>
             {
                 ref var tev = ref Unsafe.As<Unit, T>(ref ev);
-                eventHandler(ref tev);
+                eventHandler(id, ref tev);
             },
             true,
             startEnabled);
