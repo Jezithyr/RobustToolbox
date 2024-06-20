@@ -47,11 +47,23 @@ END TEMPLATE-->
 
 ### Other
 
-* Fix internal networking logic
+* Non-existent resources are cached by `IResourceCache.TryGetResource`. This avoids the game constantly trying to re-load non-existent resources in common patterns such as UI theme texture fallbacks.
+* Default IPv4 MTU has been lowered to 700.
 
 ### Internal
 
 *None yet*
+
+
+## 226.1.0
+
+### New features
+
+* Add some GetLocalEntitiesIntersecting methods for `Entity<T>`.
+
+### Other
+
+* Fix internal networking logic
 
 
 ## 226.0.0
