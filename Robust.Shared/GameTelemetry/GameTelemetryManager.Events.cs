@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -17,8 +17,8 @@ public sealed partial class GameTelemetryManager
         FrozenDictionary<SensorType, SensorData>.Empty;
     private readonly Dictionary<SensorType, SensorData> _eventDataUnfrozen = new();
 
-    private readonly Dictionary<Type,GameTelemetryHandler> _handlers = new();
-
+    private readonly List<GameTelemetryHandlerSystem> _handlers = new();
+    internal List<GameTelemetrySystem> Systems = new();
     internal void RegisterSensorId(GameTelemetryId id, Type type, SensorOrigin origin, out SensorData subs)
     {
         if (origin == SensorOrigin.None)
@@ -108,7 +108,10 @@ public sealed partial class GameTelemetryManager
 
     internal void SetRegistrationLock(bool state = true)
     {
+        if (state == _registrationLock)
+            return;
         _registrationLock = state;
+        _sawmill.Debug(state ? "Locking Registrations" : "Unlocking Registrations");
         _eventData = _eventDataUnfrozen.ToFrozenDictionary();
     }
 
