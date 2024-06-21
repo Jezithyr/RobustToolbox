@@ -24,6 +24,7 @@ using Robust.Shared.ContentPack;
 using Robust.Shared.Enums;
 using Robust.Shared.Exceptions;
 using Robust.Shared.GameObjects;
+using Robust.Shared.GameTelemetry;
 using Robust.Shared.IoC;
 using Robust.Shared.Localization;
 using Robust.Shared.Log;
@@ -106,9 +107,9 @@ namespace Robust.Server
         [Dependency] private readonly IGamePrototypeLoadManager _protoLoadMan = default!;
         [Dependency] private readonly NetworkResourceManager _netResMan = default!;
         [Dependency] private readonly IReflectionManager _refMan = default!;
+        [Dependency] private readonly GameTelemetryManager _teleMan = default!;
 
         private readonly Stopwatch _uptimeStopwatch = new();
-
         private CommandLineArgs? _commandLineArgs;
         private Func<ILogHandler>? _logHandlerFactory;
         private ILogHandler? _logHandler;
@@ -360,7 +361,6 @@ namespace Robust.Server
                 _resources,
                 _config,
                 _log.GetSawmill("res"));
-
             _entityManager.Initialize();
             _mapManager.Initialize();
 
@@ -379,7 +379,9 @@ namespace Robust.Server
 
             IoCManager.Resolve<ToolshedManager>().Initialize();
             _consoleHost.Initialize();
+            _teleMan.Startup();
             _entityManager.Startup();
+            _teleMan.PostStart();
             _mapManager.Startup();
             _stateManager.Initialize();
             _replay.Initialize();
@@ -658,6 +660,7 @@ namespace Robust.Server
 
             // shutdown entities
             _entityManager.Cleanup();
+            _teleMan.Cleanup();
 
             if (_config.GetCVar(CVars.LogRuntimeLog))
             {
