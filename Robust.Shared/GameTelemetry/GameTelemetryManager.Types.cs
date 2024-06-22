@@ -2,6 +2,7 @@
 using JetBrains.Annotations;
 using Robust.Shared.Collections;
 using Robust.Shared.Serialization;
+using Robust.Shared.Serialization.Manager.Attributes;
 
 namespace Robust.Shared.GameTelemetry;
 
@@ -9,8 +10,11 @@ namespace Robust.Shared.GameTelemetry;
 [Serializable, NetSerializable]
 public record struct GameTelemetryId
 {
+    [DataField(readOnly:true)]
     public readonly string Name;
+    [DataField(readOnly:true)]
     public readonly string Category;
+    [DataField(readOnly:true)]
     public readonly int Hash;
     GameTelemetryId(string name, string category = GameTelemetryManager.DefaultCategory)
     {

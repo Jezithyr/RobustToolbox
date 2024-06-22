@@ -179,6 +179,14 @@ namespace Robust.Client.UserInterface
         /// <typeparam name="T">Desired Type</typeparam>
         /// <returns>Success</returns>
         public bool TryFindControlOnRoot<T>(string name, [NotNullWhen(true)] out T? control) where T : Control;
+
+        /// <summary>
+        /// Try to get a control with the specified type that is in the hierarchy of rootControl by name
+        /// </summary>
+        /// <param name="name">Unique name of the control</param>
+        /// <param name="control">Found Control<</param>
+        /// <returns>Success</returns>
+        public bool TryFindControlInHierarchy(string name, [NotNullWhen(true)] Control? control);
     }
 
     public readonly struct PostDrawUIRootEventArgs

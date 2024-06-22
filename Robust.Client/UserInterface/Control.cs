@@ -119,6 +119,41 @@ namespace Robust.Client.UserInterface
             return null;
         }
 
+        private bool TryFindControlRecursive(string name, Control? control, [NotNullWhen(true)] out Control? foundControl)
+        {
+            foundControl = null;
+            if (control == null)
+                return false;
+            if (control.Name == name)
+            {
+                foundControl = control;
+                return true;
+            }
+            foreach (var child in control.Children)
+            {
+                if (TryFindControlRecursive(name, child, out foundControl))
+                    return true;
+            }
+            return false;
+        }
+
+        public bool TryFindControlInHierarchy(string name, [NotNullWhen(true)] out Control? control)
+        {
+            return TryFindControlRecursive(name, this, out control);
+        }
+
+        public bool TryFindControlInHierarchy<T>(string name, [NotNullWhen(true)] out T? control) where T: Control
+        {
+            control = null;
+            if (!TryFindControlRecursive(name, this, out var foundCtl))
+                return false;
+            if (foundCtl is not T ret)
+            {
+                throw new ArgumentException($"Control with name {name} had invalid type {foundCtl.GetType()}");
+            }
+            control = ret;
+            return true;
+        }
 
         public bool TryFindControl(string name, [NotNullWhen(true)] out Control? control)
         {
@@ -133,11 +168,7 @@ namespace Robust.Client.UserInterface
         public bool TryFindControl<T>(string name, [NotNullWhen(true)] out T? control) where T : Control
         {
             control = null;
-            var nameScope = FindNameScope();
-            if (nameScope == null)
-                return false;
-            var value = nameScope.Find(name);
-            if (value is not T ret)
+            if (!TryFindControl(name, out var value) || value is not T ret)
                 return false;
             control = ret;
             return true;

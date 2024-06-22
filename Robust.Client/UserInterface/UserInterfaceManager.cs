@@ -420,6 +420,8 @@ namespace Robust.Client.UserInterface
             handle.SetTransform(oldXform);
         }
 
+
+
         public Control FindControlOnRoot(string name)
         {
             return RootControl.FindControl(name);
@@ -438,6 +440,11 @@ namespace Robust.Client.UserInterface
         public bool TryFindControlOnRoot<T>(string name, [NotNullWhen(true)] out T? control) where T : Control
         {
             return RootControl.TryFindControl(name, out control);
+        }
+
+        public bool TryFindControlInHierarchy(string name, [NotNullWhen(true)] Control? control)
+        {
+            return RootControl.TryFindControlInHierarchy(name, out control);
         }
 
         public Color GetMainClearColor() => RootControl.ActualBgColor;
