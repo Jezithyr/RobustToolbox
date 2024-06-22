@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Robust.Shared.Collections;
 using Robust.Shared.GameObjects;
+using Robust.Shared.GameTelemetry.Systems;
 using Robust.Shared.Utility;
 
 namespace Robust.Shared.GameTelemetry;
@@ -16,8 +17,6 @@ public sealed partial class GameTelemetryManager
     private FrozenDictionary<SensorType, SensorData> _eventData =
         FrozenDictionary<SensorType, SensorData>.Empty;
     private readonly Dictionary<SensorType, SensorData> _eventDataUnfrozen = new();
-
-    private readonly List<GameTelemetryHandlerSystem> _handlers = new();
     internal List<GameTelemetrySystem> Systems = new();
     internal void RegisterSensorId(GameTelemetryId id, Type type, SensorOrigin origin, out SensorData subs)
     {

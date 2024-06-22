@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Frozen;
 using Robust.Shared.GameObjects;
+using Robust.Shared.GameTelemetry.Systems;
 using Robust.Shared.IoC;
 using Robust.Shared.Log;
 using Robust.Shared.Network;
@@ -50,7 +51,6 @@ public sealed partial class GameTelemetryManager
         SetRegistrationLock();
         _eventDataUnfrozen.Clear();
         _eventData = _eventDataUnfrozen.ToFrozenDictionary();
-        _handlers.Clear();
         Systems.Clear();
     }
 
@@ -61,13 +61,5 @@ public sealed partial class GameTelemetryManager
             throw new InvalidOperationException("Registrations are locked. Do not manually call this method!");
         Systems.Add(system);
         _sawmill.Debug($"Registered {system.GetType()} as a telemetry system!");
-    }
-
-    internal void RegisterTelemetryHandlerSystem(GameTelemetryHandlerSystem system)
-    {
-        if (_registrationLock)
-            throw new InvalidOperationException("Registrations are locked. Do not manually call this method!");
-        _handlers.Add(system);
-        _sawmill.Debug($"Registered {system.GetType()} as a telemetry handler system!");
     }
 }

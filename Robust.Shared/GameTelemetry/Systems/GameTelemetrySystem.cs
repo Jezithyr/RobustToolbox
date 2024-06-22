@@ -7,10 +7,10 @@ using Robust.Shared.Network;
 using Robust.Shared.Player;
 using Robust.Shared.Utility;
 
-namespace Robust.Shared.GameTelemetry;
+namespace Robust.Shared.GameTelemetry.Systems;
 
 
-public abstract class GameTelemetrySystem : EntitySystem, IPostInjectInit
+public abstract partial class GameTelemetrySystem : EntitySystem
 {
     [Dependency] protected GameTelemetryManager TelemetryManager = default!;
     [Dependency] protected INetManager NetManager = default!;
@@ -67,7 +67,7 @@ public abstract class GameTelemetrySystem : EntitySystem, IPostInjectInit
         _sensorIds.GetOrNew(typeof(T)).Add(gameTelemetryId);
     }
 
-    protected abstract void DefineIds(bool isServer);
+    protected abstract void DefineTelemetryIds(bool isServer);
 
     protected override void PostInject()
     {
@@ -75,7 +75,7 @@ public abstract class GameTelemetrySystem : EntitySystem, IPostInjectInit
         base.PostInject();
         TelemetryManager.RegisterTelemetrySystem(this);
         _canReg = true;
-        DefineIds(NetManager.IsServer);
+        DefineTelemetryIds(NetManager.IsServer);
         _canReg = false;
     }
 }

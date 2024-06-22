@@ -1,15 +1,10 @@
-﻿using System.Linq;
-using System.Runtime.CompilerServices;
-using Robust.Shared.GameObjects;
-using Robust.Shared.IoC;
-using Robust.Shared.Network;
+﻿using System.Runtime.CompilerServices;
+using System.Linq;
 
-namespace Robust.Shared.GameTelemetry;
+namespace Robust.Shared.GameTelemetry.Systems;
 
-public abstract class GameTelemetryHandlerSystem : EntitySystem, IPostInjectInit
+public abstract partial class GameTelemetrySystem
 {
-    [IoC.Dependency] protected GameTelemetryManager TelemetryManager = default!;
-    [IoC.Dependency] protected INetManager NetManager = default!;
     protected void SubscribeAllTelemetryHandlers<T>(
         GameTelemetryHandler<T> telemetryHandler,
         string? categoryFilter = null,
@@ -182,12 +177,5 @@ public abstract class GameTelemetryHandlerSystem : EntitySystem, IPostInjectInit
             },
             eventHandler,
             true);
-    }
-
-    protected override void PostInject()
-    {
-        //This is cursed but I need to do this
-        base.PostInject();
-        TelemetryManager.RegisterTelemetryHandlerSystem(this);
     }
 }
