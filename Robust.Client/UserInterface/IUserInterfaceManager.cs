@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Robust.Client.Audio.Sources;
 using Robust.Client.Graphics;
 using Robust.Client.UserInterface.Controls;
@@ -146,6 +147,38 @@ namespace Robust.Client.UserInterface
         /// but not necessarily a new or existing control is rearranged.
         /// </summary>
         void UpdateHovered();
+
+        /// <summary>
+        /// Looks up a control that is a child of rootControl by name
+        /// </summary>
+        /// <param name="name">Unique name of the control</param>
+        /// <returns>Found Control</returns>
+        public Control FindControlOnRoot(string name);
+
+        /// <summary>
+        /// Looks up a control with the specified type that is a child of rootControl by name
+        /// </summary>
+        /// <param name="name">Unique name of the control</param>
+        /// <typeparam name="T">Desired Type</typeparam>
+        /// <returns>Found Control</returns>
+        public T FindControlOnRoot<T>(string name) where T : Control;
+
+        /// <summary>
+        /// Try to get a control that is a child of rootControl by name
+        /// </summary>
+        /// <param name="name">Unique name of the control</param>
+        /// <param name="control">Found Control</param>
+        /// <returns>Success</returns>
+        public bool TryFindControlOnRoot(string name, [NotNullWhen(true)] out Control? control);
+
+        /// <summary>
+        /// Try to get a control with the specified type that is a child of rootControl by name
+        /// </summary>
+        /// <param name="name">Unique name of the control</param>
+        /// <param name="control">Found Control</param>
+        /// <typeparam name="T">Desired Type</typeparam>
+        /// <returns>Success</returns>
+        public bool TryFindControlOnRoot<T>(string name, [NotNullWhen(true)] out T? control) where T : Control;
     }
 
     public readonly struct PostDrawUIRootEventArgs

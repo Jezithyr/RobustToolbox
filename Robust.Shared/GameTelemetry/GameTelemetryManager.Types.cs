@@ -23,8 +23,8 @@ public record struct GameTelemetryId
 
     public override int GetHashCode() => Hash;
 
-    public static implicit operator (string, string)(GameTelemetryId id) => (id.Category, id.Name);
-    public static implicit operator GameTelemetryId((string,string) id) => new(id.Item2, id.Item1);
+    public static implicit operator (string, string)(GameTelemetryId id) => (id.Name, id.Category);
+    public static implicit operator GameTelemetryId((string,string) id) => new(id.Item1, id.Item2);
     public static implicit operator GameTelemetryId(string id) => new(id);
     public static implicit operator string(GameTelemetryId id) => $"{id.Category}:{id.Name}";
     public override string ToString() => $"{Category}:{Name}";

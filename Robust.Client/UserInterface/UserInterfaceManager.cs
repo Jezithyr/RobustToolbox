@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using Robust.Client.Graphics;
 using Robust.Client.Input;
@@ -417,6 +418,26 @@ namespace Robust.Client.UserInterface
             }
 
             handle.SetTransform(oldXform);
+        }
+
+        public Control FindControlOnRoot(string name)
+        {
+            return RootControl.FindControl(name);
+        }
+
+        public T FindControlOnRoot<T>(string name) where T: Control
+        {
+            return RootControl.FindControl<T>(name);
+        }
+
+        public bool TryFindControlOnRoot(string name, [NotNullWhen(true)] out Control? control)
+        {
+            return RootControl.TryFindControl(name, out control);
+        }
+
+        public bool TryFindControlOnRoot<T>(string name, [NotNullWhen(true)] out T? control) where T : Control
+        {
+            return RootControl.TryFindControl(name, out control);
         }
 
         public Color GetMainClearColor() => RootControl.ActualBgColor;

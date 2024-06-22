@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Numerics;
 using Avalonia.Metadata;
@@ -118,7 +119,31 @@ namespace Robust.Client.UserInterface
             return null;
         }
 
-        public T FindControl<T>(string name) where T : Control
+
+        public bool TryFindControl(string name, [NotNullWhen(true)] out Control? control)
+        {
+            control = null;
+            var nameScope = FindNameScope();
+            if (nameScope == null)
+                return false;
+            control = nameScope.Find(name);
+            return control != null;
+        }
+
+        public bool TryFindControl<T>(string name, [NotNullWhen(true)] out T? control) where T : Control
+        {
+            control = null;
+            var nameScope = FindNameScope();
+            if (nameScope == null)
+                return false;
+            var value = nameScope.Find(name);
+            if (value is not T ret)
+                return false;
+            control = ret;
+            return true;
+        }
+
+        public Control FindControl(string name)
         {
             var nameScope = FindNameScope();
             if (nameScope == null)
@@ -131,7 +156,12 @@ namespace Robust.Client.UserInterface
             {
                 throw new ArgumentException($"No Control with the name {name} found");
             }
+            return value;
+        }
 
+        public T FindControl<T>(string name) where T : Control
+        {
+            var value = FindControl(name);
             if (value is not T ret)
             {
                 throw new ArgumentException($"Control with name {name} had invalid type {value.GetType()}");
