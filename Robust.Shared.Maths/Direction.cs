@@ -38,6 +38,33 @@ namespace Robust.Shared.Maths
     {
         private const double Segment = 2 * Math.PI / 8.0; // Cut the circle into 8 pieces
 
+        public static Direction Invert(this Direction direction)
+        {
+            switch (direction)
+            {
+                case Direction.Invalid:
+                    return Direction.Invalid;
+                case Direction.South:
+                    return Direction.North;
+                case Direction.SouthEast:
+                    return Direction.NorthWest;
+                case Direction.East:
+                    return Direction.West;
+                case Direction.NorthEast:
+                    return Direction.SouthWest;
+                case Direction.North:
+                    return Direction.South;
+                case Direction.NorthWest:
+                    return Direction.SouthEast;
+                case Direction.West:
+                    return Direction.East;
+                case Direction.SouthWest:
+                    return Direction.NorthEast;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(direction), direction, null);
+            }
+        }
+
         public static Direction AsDir(this DirectionFlag directionFlag)
         {
             switch (directionFlag)

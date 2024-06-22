@@ -119,37 +119,40 @@ namespace Robust.Client.UserInterface
             return null;
         }
 
-        private bool TryFindControlRecursive(string name, Control? control, [NotNullWhen(true)] out Control? foundControl)
+        private bool TryFindControlRecursive(string name,[NotNullWhen(true)] ref Control? control, params Type[] skipTypes)
         {
-            foundControl = null;
             if (control == null)
                 return false;
-            if (control.Name == name)
-            {
-                foundControl = control;
+            if (!skipTypes.Contains(control.GetType()) && control.Name == name)
                 return true;
-            }
             foreach (var child in control.Children)
             {
-                if (TryFindControlRecursive(name, child, out foundControl))
+                if (skipTypes.Contains(child.GetType()))
+                    continue;
+                control = child;
+
+                if (TryFindControlRecursive(name,ref control))
                     return true;
             }
+            control = null;
             return false;
         }
 
-        public bool TryFindControlInHierarchy(string name, [NotNullWhen(true)] out Control? control)
+        public bool TryFindControlInHierarchy(string name,[NotNullWhen(true)] out Control? control, params Type[] skipTypes)
         {
-            return TryFindControlRecursive(name, this, out control);
+            control = this;
+            return TryFindControlRecursive(name, ref control, skipTypes);
         }
 
-        public bool TryFindControlInHierarchy<T>(string name, [NotNullWhen(true)] out T? control) where T: Control
+        public bool TryFindControlInHierarchy<T>(string name, [NotNullWhen(true)] out T? control, params Type[] skipTypes) where T: Control
         {
             control = null;
-            if (!TryFindControlRecursive(name, this, out var foundCtl))
+            Control? foundControl = this;
+            if (!TryFindControlRecursive(name,  ref foundControl, skipTypes))
                 return false;
-            if (foundCtl is not T ret)
+            if (foundControl is not T ret)
             {
-                throw new ArgumentException($"Control with name {name} had invalid type {foundCtl.GetType()}");
+                throw new ArgumentException($"Control with name {name} had invalid type {foundControl.GetType()}");
             }
             control = ret;
             return true;
