@@ -36,39 +36,52 @@ public sealed partial class GameTelemetryManager
             : _eventDataUnfrozen.TryGetValue((type, id), out subs);
     }
 
-    public void RaiseEvent<T>(GameTelemetryId gameTelemetryId, T args) where T : notnull
+    public void ResetOneShotEvent<T>(GameTelemetryId gameTelemetryId) where T : notnull
+    {
+        if (!TryGetSensorData(gameTelemetryId, typeof(T), out var data))
+            return;
+        data.Triggered = false;
+    }
+
+    public void RaiseEvent<T>(GameTelemetryId gameTelemetryId, T args, bool oneShot = false) where T : notnull
     {
         if (!_eventData.TryGetValue((typeof(T), gameTelemetryId), out var sensorData))
             return;
-        RaiseEventBase(gameTelemetryId, sensorData.Origin, sensorData, ref args);
+        RaiseEventBase(gameTelemetryId, sensorData.Origin, sensorData, ref args, oneShot);
     }
 
-    public void RaiseEvent<T>(GameTelemetryId gameTelemetryId,  ref T args) where T : notnull
+    public void RaiseEvent<T>(GameTelemetryId gameTelemetryId,  ref T args, bool oneShot = false) where T : notnull
     {
         if (!_eventData.TryGetValue((typeof(T), gameTelemetryId), out var sensorData))
             return;
-        RaiseEventBase(gameTelemetryId, sensorData.Origin, sensorData, ref args);
+        RaiseEventBase(gameTelemetryId, sensorData.Origin, sensorData, ref args, oneShot);
     }
 
-    public void RaiseEvent<T>(GameTelemetryId gameTelemetryId, SensorOrigin origin, T args) where T : notnull
+    private void RaiseEvent<T>(GameTelemetryId gameTelemetryId, SensorOrigin origin, T args, bool oneShot) where T : notnull
     {
         if (!_eventData.TryGetValue((typeof(T), gameTelemetryId), out var sensorData)
             || !sensorData.Origin.HasFlag(SensorOrigin.Local))
             return;
-        RaiseEventBase(gameTelemetryId, origin, sensorData, ref args);
+        RaiseEventBase(gameTelemetryId, origin, sensorData, ref args, oneShot);
     }
 
-    public void RaiseEvent<T>(GameTelemetryId gameTelemetryId, SensorOrigin origin, ref T args) where T : notnull
+    private void RaiseEvent<T>(GameTelemetryId gameTelemetryId, SensorOrigin origin, ref T args, bool oneShot) where T : notnull
     {
         if (!_eventData.TryGetValue((typeof(T), gameTelemetryId), out var sensorData)
             || !sensorData.Origin.HasFlag(SensorOrigin.Local))
             return;
-        RaiseEventBase(gameTelemetryId, origin, sensorData, ref args);
+        RaiseEventBase(gameTelemetryId, origin, sensorData, ref args, oneShot);
     }
 
-    private void RaiseEventBase<T>(GameTelemetryId gameTelemetryId, SensorOrigin origin,SensorData sensorData, ref T args)
+    private void RaiseEventBase<T>(GameTelemetryId gameTelemetryId, SensorOrigin origin,SensorData sensorData, ref T args, bool oneShot)
         where T : notnull
     {
+        if (oneShot)
+        {
+            if (sensorData.Triggered)
+                return;
+            sensorData.Triggered = true;
+        }
         switch (origin)
         {
             case SensorOrigin.Local:
@@ -135,8 +148,8 @@ public sealed partial class GameTelemetryManager
         GameTelemetryId id,
         SensorOrigin origin,
         SensorRefListener eventListener,
-        bool byRef,
-        bool startEnabled
+        object listenerRef,
+        bool byRef
     )
         where T : notnull
     {
@@ -146,31 +159,75 @@ public sealed partial class GameTelemetryManager
         if (eventReference != byRef)
         {
             throw new InvalidOperationException(
-                $"Attempted to register a gameSensor handler with ref-value mismatch! sensorArgs={eventType} " +
+                $"Attempted to subscribe a gameSensor handler with ref-value mismatch! sensorArgs={eventType} " +
                 $"eventIsByRef={eventReference} subscriptionIsByRef={byRef}");
         }
 
         if (!TryGetSensorData(id, eventType, out var subscriptions))
         {
             throw new InvalidOperationException(
-                $"Attempted to register a gameSensor handler to an unregistered SensorId: {id}! sensorArgs={eventType} " +
+                $"Attempted to subscribe a gameSensor handler to an unregistered SensorId: {id}! sensorArgs={eventType} " +
                 $"eventIsByRef={eventReference} subscriptionIsByRef={byRef}");
         }
 
         if (!subscriptions.Origin.HasFlag(origin))
         {
             throw new InvalidOperationException(
-                $"Attempted to register a gameSensor handler with invalid source! SensorId: {id}! sensorArgs={eventType} " +
+                $"Attempted to subscribe a gameSensor handler with invalid source! SensorId: {id}! sensorArgs={eventType} " +
                 $"sensorSource={subscriptions.Origin} subscriptionSource={origin}");
         }
 
-        if (!subscriptions.TrySubscribeSensor(new SensorListener(origin, eventListener, eventListener), startEnabled))
+        if (!subscriptions.TrySubscribeSensor(new SensorListener(origin, eventListener, listenerRef)))
         {
             throw new InvalidOperationException(
-                $"Attempted to register a gameSensor handler twice! sensorId={id} sensorArgs={eventType}" +
+                $"Attempted to subscribe a gameSensor handler twice! sensorId={id} sensorArgs={eventType}" +
+                $"eventIsByRef={eventReference} subscriptionIsByRef={byRef}");
+        }
+    }
+
+    internal void UnSubscribeSensor<T>(
+        GameTelemetryId id,
+        SensorOrigin origin,
+        SensorRefListener eventListener,
+        bool byRef,
+        bool warnIfMissing = false
+    )
+        where T : notnull
+    {
+        ArgumentNullException.ThrowIfNull(eventListener);
+        var eventType = typeof(T);
+        var eventReference = eventType.HasCustomAttribute<ByRefEventAttribute>();
+        if (eventReference != byRef)
+        {
+            throw new InvalidOperationException(
+                $"Attempted to unsubscribe a gameSensor handler with ref-value mismatch! sensorArgs={eventType} " +
                 $"eventIsByRef={eventReference} subscriptionIsByRef={byRef}");
         }
 
+
+        if (!TryGetSensorData(id, eventType, out var subscriptions))
+        {
+            if (warnIfMissing)
+            {
+                _sawmill.Warning( $"Attempted to unsubscribe a gameSensor handler from an unregistered SensorId: {id}! sensorArgs={eventType} " +
+                                  $"eventIsByRef={eventReference} subscriptionIsByRef={byRef}");
+            }
+            return;
+        }
+
+        if (!subscriptions.Origin.HasFlag(origin))
+        {
+            throw new InvalidOperationException(
+                $"Attempted to unsubscribe a gameSensor handler with invalid source! SensorId: {id}! sensorArgs={eventType} " +
+                $"sensorSource={subscriptions.Origin} subscriptionSource={origin}");
+        }
+
+        if (!subscriptions.TryUnSubscribeSensor(new SensorListener(origin, eventListener, eventListener)))
+        {
+            throw new InvalidOperationException(
+                $"Attempted to unsubscribe a gameSensor handler twice! sensorId={id} sensorArgs={eventType}" +
+                $"eventIsByRef={eventReference} subscriptionIsByRef={byRef}");
+        }
     }
 
 }

@@ -42,31 +42,35 @@ internal struct Unit;
     internal sealed record SensorData
     {
         internal SensorOrigin Origin { get; set; }
-        private ValueList<SensorListener> _enabledSensors;
-        private ValueList<SensorListener> _disabledSensors;
+        private ValueList<SensorListener> _sensors;
         public SensorData() {}
 
-        public ref ValueList<SensorListener> EnabledSensors => ref _enabledSensors;
-        public ref ValueList<SensorListener> DisabledSensors => ref _disabledSensors;
+        public ref ValueList<SensorListener> EnabledSensors => ref _sensors;
+        public bool HasSensor(SensorListener sensor) => _sensors.Contains(sensor);
+        public bool Triggered { get; set; }
 
-        public bool SensorDisabled(SensorListener sensor) => _disabledSensors.Contains(sensor);
-        public bool SensorEnabled(SensorListener sensor) => _enabledSensors.Contains(sensor);
+        public bool Contains(SensorListener listener) =>
+            _sensors.Contains(listener);
 
-        public bool Contains(SensorListener handler) =>
-            SensorEnabled(handler) ||
-            SensorDisabled(handler);
 
-        public bool TrySubscribeSensor(SensorListener sensor, bool enabled = true)
+        public bool TrySubscribeSensor(SensorListener sensor)
         {
             if (Contains(sensor))
                 return false;
-            if (enabled)
+            _sensors.Add(sensor);
+            return true;
+        }
+
+        public bool TryUnSubscribeSensor(SensorListener sensor)
+        {
+            for (int index = 0; index < _sensors.Count; index++)
             {
-                _enabledSensors.Add(sensor);
+                if (_sensors[index].EqualityToken != sensor.EqualityToken)
+                    continue;
+                _sensors.RemoveAt(index);
                 return true;
             }
-            _disabledSensors.Add(sensor);
-            return true;
+            return false;
         }
     }
 
@@ -88,7 +92,7 @@ internal struct Unit;
 
 public delegate void GameTelemetryRefHandler<T>(GameTelemetryId id,ref T ev) where T : notnull;
 
-public delegate void GameTelemetryListener<T>(GameTelemetryId id,T ev) where T : notnull;
+public delegate void GameTelemetryHandler<T>(GameTelemetryId id,T ev) where T : notnull;
 
 [Flags]
 public enum SensorOrigin : byte

@@ -10,8 +10,8 @@ public sealed partial class GameTelemetryManager
         GameTelemetryId id,
         SensorOrigin origin,
         SensorRefListener eventListener,
-        bool byRef,
-        bool startEnabled
+        object listenerRef,
+        bool byRef
     )
         where T : notnull
     {

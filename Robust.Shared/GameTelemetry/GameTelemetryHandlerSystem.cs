@@ -10,18 +10,21 @@ public abstract class GameTelemetryHandlerSystem : EntitySystem, IPostInjectInit
 {
     [IoC.Dependency] protected GameTelemetryManager TelemetryManager = default!;
     [IoC.Dependency] protected INetManager NetManager = default!;
-    protected void SubscribeAllHandlers<T>(
-        GameTelemetryListener<T> telemetryListener,
-        bool startEnabled = true,
+    protected void SubscribeAllTelemetryHandlers<T>(
+        GameTelemetryHandler<T> telemetryHandler,
+        string? categoryFilter = null,
         params GameTelemetryId[] ignoreList) where T: notnull
     {
         foreach (var config in TelemetryManager.Systems)
         {
             if (!config.TryGetTelemetryIds(typeof(T), out var data))
                 continue;
+
             foreach (var sensorId in data)
             {
-                if (ignoreList.Contains(sensorId) || !TelemetryManager.TryGetSensorData(sensorId, typeof(T), out var sensorData))
+                if (categoryFilter != null && categoryFilter != sensorId.Category
+                    || ignoreList.Contains(sensorId)
+                    || !TelemetryManager.TryGetSensorData(sensorId, typeof(T), out var sensorData))
                     continue;
 
                 switch (sensorData.Origin)
@@ -29,24 +32,59 @@ public abstract class GameTelemetryHandlerSystem : EntitySystem, IPostInjectInit
                     case SensorOrigin.None:
                         continue;
                     case SensorOrigin.Local:
-                        SubscribeHandler(sensorId, telemetryListener, startEnabled);
+                        SubscribeTelemetryHandler(sensorId, telemetryHandler);
                         continue;
                     case SensorOrigin.Networked:
-                        SubscribeNetHandler(sensorId, telemetryListener, startEnabled);
+                        SubscribeNetTelemetryHandler(sensorId, telemetryHandler);
                         continue;
                     case SensorOrigin.Both:
-                        SubscribeHandler(sensorId, telemetryListener, startEnabled);
-                        SubscribeNetHandler(sensorId, telemetryListener, startEnabled);
+                        SubscribeTelemetryHandler(sensorId, telemetryHandler);
+                        SubscribeNetTelemetryHandler(sensorId, telemetryHandler);
                         continue;
                 }
             }
         }
     }
 
-    protected void SubscribeHandler<T>(
+    protected void SubscribeAllTelemetryHandlers<T>(
+        GameTelemetryRefHandler<T> telemetryHandler,
+        string? categoryFilter = null,
+        params GameTelemetryId[] ignoreList) where T: notnull
+    {
+        foreach (var config in TelemetryManager.Systems)
+        {
+            if (!config.TryGetTelemetryIds(typeof(T), out var data))
+                continue;
+
+            foreach (var sensorId in data)
+            {
+                if (categoryFilter != null && categoryFilter != sensorId.Category
+                    || ignoreList.Contains(sensorId)
+                    || !TelemetryManager.TryGetSensorData(sensorId, typeof(T), out var sensorData))
+                    continue;
+
+                switch (sensorData.Origin)
+                {
+                    case SensorOrigin.None:
+                        continue;
+                    case SensorOrigin.Local:
+                        SubscribeTelemetryHandler(sensorId, telemetryHandler);
+                        continue;
+                    case SensorOrigin.Networked:
+                        SubscribeNetTelemetryHandler(sensorId, telemetryHandler);
+                        continue;
+                    case SensorOrigin.Both:
+                        SubscribeTelemetryHandler(sensorId, telemetryHandler);
+                        SubscribeNetTelemetryHandler(sensorId, telemetryHandler);
+                        continue;
+                }
+            }
+        }
+    }
+
+    protected void SubscribeTelemetryHandler<T>(
         GameTelemetryId id,
-        GameTelemetryListener<T> eventListener,
-        bool startEnabled = true)
+        GameTelemetryHandler<T> eventHandler)
         where T : notnull
     {
         TelemetryManager.SubscribeSensor<T>(
@@ -55,16 +93,15 @@ public abstract class GameTelemetryHandlerSystem : EntitySystem, IPostInjectInit
             (ref Unit ev) =>
             {
                 ref var tev = ref Unsafe.As<Unit, T>(ref ev);
-                eventListener(id,tev);
+                eventHandler(id,tev);
             },
-            true,
-            startEnabled);
+            eventHandler,
+            true);
     }
 
-    protected void SubscribeHandler<T>(
+    protected void SubscribeTelemetryHandler<T>(
         GameTelemetryId id,
-        GameTelemetryRefHandler<T> eventHandler,
-        bool startEnabled = true)
+        GameTelemetryRefHandler<T> eventHandler)
         where T : notnull
     {
         TelemetryManager.SubscribeSensor<T>(
@@ -75,14 +112,47 @@ public abstract class GameTelemetryHandlerSystem : EntitySystem, IPostInjectInit
                 ref var tev = ref Unsafe.As<Unit, T>(ref ev);
                 eventHandler(id, ref tev);
             },
-            true,
-            startEnabled);
+            eventHandler,
+            true);
     }
 
-    protected void SubscribeNetHandler<T>(
+    protected void UnSubscribeTelemetryHandler<T>(
         GameTelemetryId id,
-        GameTelemetryListener<T> eventListener,
-        bool startEnabled = true)
+        GameTelemetryHandler<T> eventHandler)
+        where T : notnull
+    {
+        TelemetryManager.SubscribeSensor<T>(
+            id,
+            SensorOrigin.Local,
+            (ref Unit ev) =>
+            {
+                ref var tev = ref Unsafe.As<Unit, T>(ref ev);
+                eventHandler(id,tev);
+            },
+            eventHandler,
+            true);
+    }
+
+    protected void UnSubscribeTelemetryHandler<T>(
+        GameTelemetryId id,
+        GameTelemetryRefHandler<T> eventHandler)
+        where T : notnull
+    {
+        TelemetryManager.SubscribeSensor<T>(
+            id,
+            SensorOrigin.Local,
+            (ref Unit ev) =>
+            {
+                ref var tev = ref Unsafe.As<Unit, T>(ref ev);
+                eventHandler(id, ref tev);
+            },
+            eventHandler,
+            true);
+    }
+
+    protected void SubscribeNetTelemetryHandler<T>(
+        GameTelemetryId id,
+        GameTelemetryHandler<T> eventHandler)
         where T : notnull
     {
         TelemetryManager.SubscribeNetHandler<T>(
@@ -91,16 +161,15 @@ public abstract class GameTelemetryHandlerSystem : EntitySystem, IPostInjectInit
             (ref Unit ev) =>
             {
                 ref var tev = ref Unsafe.As<Unit, T>(ref ev);
-                eventListener(id, tev);
+                eventHandler(id, tev);
             },
-            true,
-            startEnabled);
+            eventHandler,
+            true);
     }
 
-    protected void SubscribeNetHandler<T>(
+    protected void SubscribeNetTelemetryHandler<T>(
         GameTelemetryId id,
-        GameTelemetryRefHandler<T> eventHandler,
-        bool startEnabled = true)
+        GameTelemetryRefHandler<T> eventHandler)
         where T : notnull
     {
         TelemetryManager.SubscribeNetHandler<T>(
@@ -111,8 +180,8 @@ public abstract class GameTelemetryHandlerSystem : EntitySystem, IPostInjectInit
                 ref var tev = ref Unsafe.As<Unit, T>(ref ev);
                 eventHandler(id, ref tev);
             },
-            true,
-            startEnabled);
+            eventHandler,
+            true);
     }
 
     protected override void PostInject()
