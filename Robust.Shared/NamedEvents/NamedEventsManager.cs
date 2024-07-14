@@ -1,15 +1,15 @@
 using System;
 using System.Collections.Frozen;
 using Robust.Shared.GameObjects;
-using Robust.Shared.GameTelemetry.Systems;
 using Robust.Shared.IoC;
 using Robust.Shared.Log;
+using Robust.Shared.NamedEvents.Systems;
 using Robust.Shared.Network;
 using Robust.Shared.Reflection;
 
-namespace Robust.Shared.GameTelemetry;
+namespace Robust.Shared.NamedEvents;
 
-public sealed partial class GameTelemetryManager
+public sealed partial class NamedEventManager
 {
     [Dependency] private IReflectionManager _reflectionManager = default!;
     [Dependency] private IDynamicTypeFactoryInternal _typeFactory = default!;
@@ -55,11 +55,11 @@ public sealed partial class GameTelemetryManager
     }
 
 
-    internal void RegisterTelemetrySystem(GameTelemetrySystem system)
+    internal void RegisterNamedEventSystem(NamedEventSystem system)
     {
         if (_registrationLock)
             throw new InvalidOperationException("Registrations are locked. Do not manually call this method!");
         Systems.Add(system);
-        _sawmill.Debug($"Registered {system.GetType()} as a telemetry system!");
+        _sawmill.Debug($"Registered {system.GetType()} as a named event system!");
     }
 }

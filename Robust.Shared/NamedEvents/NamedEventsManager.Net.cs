@@ -2,12 +2,12 @@ using System;
 using Robust.Shared.GameObjects;
 using Robust.Shared.Utility;
 
-namespace Robust.Shared.GameTelemetry;
+namespace Robust.Shared.NamedEvents;
 
-public sealed partial class GameTelemetryManager
+public sealed partial class NamedEventManager
 {
     internal void SubscribeNetHandler<T>(
-        GameTelemetryId id,
+        NamedEventId id,
         SensorOrigin origin,
         SensorRefListener eventListener,
         object listenerRef,

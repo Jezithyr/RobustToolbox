@@ -1,25 +1,25 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Linq;
 
-namespace Robust.Shared.GameTelemetry.Systems;
+namespace Robust.Shared.NamedEvents.Systems;
 
-public abstract partial class GameTelemetrySystem
+public abstract partial class NamedEventSystem
 {
-    protected void SubscribeAllTelemetryHandlers<T>(
-        GameTelemetryHandler<T> telemetryHandler,
+    protected void SubscribeAllNamedEventHandlers<T>(
+        NamedEventHandler<T> namedEventHandler,
         string? categoryFilter = null,
-        params GameTelemetryId[] ignoreList) where T: notnull
+        params NamedEventId[] ignoreList) where T: notnull
     {
-        foreach (var config in TelemetryManager.Systems)
+        foreach (var config in NamedEventManager.Systems)
         {
-            if (!config.TryGetTelemetryIds(typeof(T), out var data))
+            if (!config.TryGetNamedEventIds(typeof(T), out var data))
                 continue;
 
             foreach (var sensorId in data)
             {
                 if (categoryFilter != null && categoryFilter != sensorId.Category
                     || ignoreList.Contains(sensorId)
-                    || !TelemetryManager.TryGetSensorData(sensorId, typeof(T), out var sensorData))
+                    || !NamedEventManager.TryGetSensorData(sensorId, typeof(T), out var sensorData))
                     continue;
 
                 switch (sensorData.Origin)
@@ -27,35 +27,35 @@ public abstract partial class GameTelemetrySystem
                     case SensorOrigin.None:
                         continue;
                     case SensorOrigin.Local:
-                        SubscribeTelemetryHandler(sensorId, telemetryHandler);
+                        SubscribeNamedEventHandler(sensorId, namedEventHandler);
                         continue;
                     case SensorOrigin.Networked:
-                        SubscribeNetTelemetryHandler(sensorId, telemetryHandler);
+                        SubscribeNetNamedEventHandler(sensorId, namedEventHandler);
                         continue;
                     case SensorOrigin.Both:
-                        SubscribeTelemetryHandler(sensorId, telemetryHandler);
-                        SubscribeNetTelemetryHandler(sensorId, telemetryHandler);
+                        SubscribeNamedEventHandler(sensorId, namedEventHandler);
+                        SubscribeNetNamedEventHandler(sensorId, namedEventHandler);
                         continue;
                 }
             }
         }
     }
 
-    protected void SubscribeAllTelemetryHandlers<T>(
-        GameTelemetryRefHandler<T> telemetryHandler,
+    protected void SubscribeAllNamedEventHandlers<T>(
+        NamedEventRefHandler<T> namedEventHandler,
         string? categoryFilter = null,
-        params GameTelemetryId[] ignoreList) where T: notnull
+        params NamedEventId[] ignoreList) where T: notnull
     {
-        foreach (var config in TelemetryManager.Systems)
+        foreach (var config in NamedEventManager.Systems)
         {
-            if (!config.TryGetTelemetryIds(typeof(T), out var data))
+            if (!config.TryGetNamedEventIds(typeof(T), out var data))
                 continue;
 
             foreach (var sensorId in data)
             {
                 if (categoryFilter != null && categoryFilter != sensorId.Category
                     || ignoreList.Contains(sensorId)
-                    || !TelemetryManager.TryGetSensorData(sensorId, typeof(T), out var sensorData))
+                    || !NamedEventManager.TryGetSensorData(sensorId, typeof(T), out var sensorData))
                     continue;
 
                 switch (sensorData.Origin)
@@ -63,26 +63,26 @@ public abstract partial class GameTelemetrySystem
                     case SensorOrigin.None:
                         continue;
                     case SensorOrigin.Local:
-                        SubscribeTelemetryHandler(sensorId, telemetryHandler);
+                        SubscribeNamedEventHandler(sensorId, namedEventHandler);
                         continue;
                     case SensorOrigin.Networked:
-                        SubscribeNetTelemetryHandler(sensorId, telemetryHandler);
+                        SubscribeNetNamedEventHandler(sensorId, namedEventHandler);
                         continue;
                     case SensorOrigin.Both:
-                        SubscribeTelemetryHandler(sensorId, telemetryHandler);
-                        SubscribeNetTelemetryHandler(sensorId, telemetryHandler);
+                        SubscribeNamedEventHandler(sensorId, namedEventHandler);
+                        SubscribeNetNamedEventHandler(sensorId, namedEventHandler);
                         continue;
                 }
             }
         }
     }
 
-    protected void SubscribeTelemetryHandler<T>(
-        GameTelemetryId id,
-        GameTelemetryHandler<T> eventHandler)
+    protected void SubscribeNamedEventHandler<T>(
+        NamedEventId id,
+        NamedEventHandler<T> eventHandler)
         where T : notnull
     {
-        TelemetryManager.SubscribeSensor<T>(
+        NamedEventManager.SubscribeSensor<T>(
             id,
             SensorOrigin.Local,
             (ref Unit ev) =>
@@ -94,12 +94,12 @@ public abstract partial class GameTelemetrySystem
             true);
     }
 
-    protected void SubscribeTelemetryHandler<T>(
-        GameTelemetryId id,
-        GameTelemetryRefHandler<T> eventHandler)
+    protected void SubscribeNamedEventHandler<T>(
+        NamedEventId id,
+        NamedEventRefHandler<T> eventHandler)
         where T : notnull
     {
-        TelemetryManager.SubscribeSensor<T>(
+        NamedEventManager.SubscribeSensor<T>(
             id,
             SensorOrigin.Local,
             (ref Unit ev) =>
@@ -111,12 +111,12 @@ public abstract partial class GameTelemetrySystem
             true);
     }
 
-    protected void UnSubscribeTelemetryHandler<T>(
-        GameTelemetryId id,
-        GameTelemetryHandler<T> eventHandler)
+    protected void UnSubscribeNamedEventHandler<T>(
+        NamedEventId id,
+        NamedEventHandler<T> eventHandler)
         where T : notnull
     {
-        TelemetryManager.SubscribeSensor<T>(
+        NamedEventManager.SubscribeSensor<T>(
             id,
             SensorOrigin.Local,
             (ref Unit ev) =>
@@ -128,12 +128,12 @@ public abstract partial class GameTelemetrySystem
             true);
     }
 
-    protected void UnSubscribeTelemetryHandler<T>(
-        GameTelemetryId id,
-        GameTelemetryRefHandler<T> eventHandler)
+    protected void UnSubscribeNamedEventHandler<T>(
+        NamedEventId id,
+        NamedEventRefHandler<T> eventHandler)
         where T : notnull
     {
-        TelemetryManager.SubscribeSensor<T>(
+        NamedEventManager.SubscribeSensor<T>(
             id,
             SensorOrigin.Local,
             (ref Unit ev) =>
@@ -145,12 +145,12 @@ public abstract partial class GameTelemetrySystem
             true);
     }
 
-    protected void SubscribeNetTelemetryHandler<T>(
-        GameTelemetryId id,
-        GameTelemetryHandler<T> eventHandler)
+    protected void SubscribeNetNamedEventHandler<T>(
+        NamedEventId id,
+        NamedEventHandler<T> eventHandler)
         where T : notnull
     {
-        TelemetryManager.SubscribeNetHandler<T>(
+        NamedEventManager.SubscribeNetHandler<T>(
             id,
             SensorOrigin.Networked,
             (ref Unit ev) =>
@@ -162,12 +162,12 @@ public abstract partial class GameTelemetrySystem
             true);
     }
 
-    protected void SubscribeNetTelemetryHandler<T>(
-        GameTelemetryId id,
-        GameTelemetryRefHandler<T> eventHandler)
+    protected void SubscribeNetNamedEventHandler<T>(
+        NamedEventId id,
+        NamedEventRefHandler<T> eventHandler)
         where T : notnull
     {
-        TelemetryManager.SubscribeNetHandler<T>(
+        NamedEventManager.SubscribeNetHandler<T>(
             id,
             SensorOrigin.Networked,
             (ref Unit ev) =>

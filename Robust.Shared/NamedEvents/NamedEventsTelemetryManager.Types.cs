@@ -4,11 +4,11 @@ using Robust.Shared.Collections;
 using Robust.Shared.Serialization;
 using Robust.Shared.Serialization.Manager.Attributes;
 
-namespace Robust.Shared.GameTelemetry;
+namespace Robust.Shared.NamedEvents;
 
 
 [Serializable, NetSerializable]
-public record struct GameTelemetryId
+public record struct NamedEventId
 {
     [DataField(readOnly:true)]
     public readonly string Name;
@@ -16,21 +16,21 @@ public record struct GameTelemetryId
     public readonly string Category;
     [DataField(readOnly:true)]
     public readonly int Hash;
-    GameTelemetryId(string name, string category = GameTelemetryManager.DefaultCategory)
+    NamedEventId(string name, string category = NamedEventManager.DefaultCategory)
     {
         Name = name;
         Category = category;
         Hash = HashCode.Combine(Name, Category);
     }
 
-    public bool Equals(GameTelemetryId other) => other.Hash == Hash;
+    public bool Equals(NamedEventId other) => other.Hash == Hash;
 
     public override int GetHashCode() => Hash;
 
-    public static implicit operator (string, string)(GameTelemetryId id) => (id.Name, id.Category);
-    public static implicit operator GameTelemetryId((string,string) id) => new(id.Item1, id.Item2);
-    public static implicit operator GameTelemetryId(string id) => new(id);
-    public static implicit operator string(GameTelemetryId id) => $"{id.Category}:{id.Name}";
+    public static implicit operator (string, string)(NamedEventId id) => (id.Name, id.Category);
+    public static implicit operator NamedEventId((string,string) id) => new(id.Item1, id.Item2);
+    public static implicit operator NamedEventId(string id) => new(id);
+    public static implicit operator string(NamedEventId id) => $"{id.Category}:{id.Name}";
     public override string ToString() => $"{Category}:{Name}";
 }
 
@@ -94,9 +94,9 @@ internal struct Unit;
         }
     }
 
-public delegate void GameTelemetryRefHandler<T>(GameTelemetryId id,ref T ev) where T : notnull;
+public delegate void NamedEventRefHandler<T>(NamedEventId id,ref T ev) where T : notnull;
 
-public delegate void GameTelemetryHandler<T>(GameTelemetryId id,T ev) where T : notnull;
+public delegate void NamedEventHandler<T>(NamedEventId id,T ev) where T : notnull;
 
 [Flags]
 public enum SensorOrigin : byte
