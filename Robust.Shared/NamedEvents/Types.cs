@@ -1,54 +1,64 @@
 ﻿using System;
-using JetBrains.Annotations;
 using Robust.Shared.Collections;
 using Robust.Shared.Serialization;
 using Robust.Shared.Serialization.Manager.Attributes;
 
-namespace Robust.Shared.NamedEvents;
-
-
-[Serializable, NetSerializable]
-public record struct NamedEventId
+namespace Robust.Shared.NamedEvents
 {
-    [DataField(readOnly:true)]
-    public readonly string Name;
-    [DataField(readOnly:true)]
-    public readonly string Category;
-    [DataField(readOnly:true)]
-    public readonly int Hash;
-    NamedEventId(string name, string category = SharedNamedEventManager.DefaultCategory)
+    [Serializable, NetSerializable]
+    public record struct NamedEventId
     {
-        Name = name;
-        Category = category;
-        Hash = HashCode.Combine(Name, Category);
+        [DataField(readOnly: true)]
+        public readonly string Name;
+
+        [DataField(readOnly: true)]
+        public readonly string Category;
+
+        [DataField(readOnly: true)]
+        public readonly int Hash;
+
+        NamedEventId(string name, string category = NamedEventManager.DefaultCategory)
+        {
+            Name = name;
+            Category = category;
+            Hash = HashCode.Combine(Name, Category);
+        }
+
+        public bool Equals(NamedEventId other) => other.Hash == Hash;
+
+        public override int GetHashCode() => Hash;
+
+        public static implicit operator (string, string)(NamedEventId id) => (id.Name, id.Category);
+        public static implicit operator NamedEventId((string, string) id) => new(id.Item1, id.Item2);
+        public static implicit operator NamedEventId(string id) => new(id);
+        public static implicit operator string(NamedEventId id) => $"{id.Category}:{id.Name}";
+        public override string ToString() => $"{Category}:{Name}";
     }
 
-    public bool Equals(NamedEventId other) => other.Hash == Hash;
+    internal sealed record GameSensorHandlerData(
+        ValueList<Subscription> EnabledHandlers,
+        ValueList<Subscription> DisabledHandlers)
+    {
+    }
 
-    public override int GetHashCode() => Hash;
+    internal struct Unit;
 
-    public static implicit operator (string, string)(NamedEventId id) => (id.Name, id.Category);
-    public static implicit operator NamedEventId((string,string) id) => new(id.Item1, id.Item2);
-    public static implicit operator NamedEventId(string id) => new(id);
-    public static implicit operator string(NamedEventId id) => $"{id.Category}:{id.Name}";
-    public override string ToString() => $"{Category}:{Name}";
-}
-
-internal sealed record GameSensorHandlerData(
-    ValueList<Subscription> EnabledHandlers,
-    ValueList<Subscription> DisabledHandlers)
-{
-}
-
-internal struct Unit;
     internal delegate void SubscriptionListenerRef(ref Unit ev);
 
-    internal sealed record SubscriptionData
+    internal sealed record NamedEventData
     {
-        internal Origin AllowedOrigins { get; set; }
+        internal Locality AllowedOrigins { get; set; } = Locality.None;
+        internal bool ReplayCaptured = true;
         private ValueList<Subscription> _subscriptions;
-        public SubscriptionData()
+
+        public NamedEventData()
         {
+        }
+
+        public NamedEventData(Locality allowedOrigins, bool replayCaptured = true)
+        {
+            AllowedOrigins = allowedOrigins;
+            ReplayCaptured = replayCaptured;
         }
 
         public ref ValueList<Subscription> EnabledSubscriptions => ref _subscriptions;
@@ -76,12 +86,13 @@ internal struct Unit;
                 _subscriptions.RemoveAt(index);
                 return true;
             }
+
             return false;
         }
     }
 
     internal readonly record struct Subscription(
-        Origin Mask,
+        Locality Mask,
         SubscriptionListenerRef Listener,
         object EqualityToken)
     {
@@ -96,16 +107,8 @@ internal struct Unit;
         }
     }
 
-public delegate void NamedEventRefHandler<T>(NamedEventId id,ref T ev) where T : notnull;
+    public delegate void NamedEventRefHandler<T>(NamedEventId id, ref T ev) where T : notnull;
 
-public delegate void NamedEventHandler<T>(NamedEventId id,T ev) where T : notnull;
+    public delegate void NamedEventHandler<T>(NamedEventId id, T ev) where T : notnull;
 
-[Flags]
-public enum Origin : byte
-{
-    None = 0,
-    Local = 1 << 0,
-    Networked = 1 << 2,
-    Both = Local | Networked,
 }
-

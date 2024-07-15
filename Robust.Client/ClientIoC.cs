@@ -3,14 +3,12 @@ using Robust.Client.Audio;
 using Robust.Client.Audio.Midi;
 using Robust.Client.Configuration;
 using Robust.Client.Console;
-using Robust.Client.Debugging;
 using Robust.Client.GameObjects;
 using Robust.Client.GameStates;
 using Robust.Client.Graphics;
 using Robust.Client.Graphics.Clyde;
 using Robust.Client.Input;
 using Robust.Client.Map;
-using Robust.Client.NamedEvents;
 using Robust.Client.Placement;
 using Robust.Client.Player;
 using Robust.Client.Profiling;
@@ -102,7 +100,6 @@ namespace Robust.Client
             deps.Register<ProfViewManager>();
             deps.Register<IGamePrototypeLoadManager, GamePrototypeLoadManager>();
             deps.Register<NetworkResourceManager>();
-            deps.Register<SharedNamedEventManager, NamedEventManager>();
 
             switch (mode)
             {

@@ -5,76 +5,109 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Robust.Shared.Collections;
 using Robust.Shared.GameObjects;
+using Robust.Shared.Network;
 using Robust.Shared.Utility;
 using EntitySystem = Robust.Shared.GameObjects.EntitySystem;
 
 namespace Robust.Shared.NamedEvents;
 
-public abstract partial class SharedNamedEventManager
+public sealed partial class NamedEventManager
 {
     private bool _registrationLock = true; //prevent skill issues with registration
 
-    private FrozenDictionary<SubscriptionId, SubscriptionData> _eventData =
-        FrozenDictionary<SubscriptionId, SubscriptionData>.Empty;
-    private readonly Dictionary<SubscriptionId, SubscriptionData> _eventDataUnfrozen = new();
-    internal List<EntitySystem> Systems = new();
-    internal void RegisterNamedEventId(NamedEventId id, Type type, Origin origin, out SubscriptionData subs)
+    private FrozenDictionary<SubscriptionId, NamedEventData> _eventData =
+        FrozenDictionary<SubscriptionId, NamedEventData>.Empty;
+    private readonly Dictionary<SubscriptionId, NamedEventData> _eventDataUnfrozen = new();
+    private readonly List<EntitySystem> _systems = new();
+    internal void RegisterEventId<T>(NamedEventId id, Locality locality, out NamedEventData subs, bool replayCaptured = true) where T: notnull
     {
-        if (origin == Origin.None)
+        if (locality == Locality.None)
             throw new ArgumentException($"NamedEvent {id} has an invalid source value!");
         if (_registrationLock)
             throw new InvalidOperationException("Registrations locked. Register Events in a Config!");
-        subs = _eventDataUnfrozen.GetOrNew((type, id));
-        subs.AllowedOrigins = origin;
+        if (_eventDataUnfrozen.TryGetValue((typeof(T), id), out var foundSubs))
+        {
+            subs = foundSubs;
+            _sawmill.Warning($"NamedEvent with ID: {id} was already registered!");
+            return;
+        }
+        subs = new NamedEventData(locality, replayCaptured);
+        _eventDataUnfrozen.Add((typeof(T), id), subs);
+        if (locality.HasFlag(Locality.Networked))
+            RegisterNetworkEvent<T>();
     }
 
-    private bool TryGetSubscriptionData(NamedEventId id, Type type, [NotNullWhen(true)] out SubscriptionData? subs)
+    private bool TryGetSubscriptionData(NamedEventId id, Type type, [NotNullWhen(true)] out NamedEventData? subs)
     {
         return _registrationLock
             ? _eventData.TryGetValue((type, id), out subs)
             : _eventDataUnfrozen.TryGetValue((type, id), out subs);
     }
 
-    private void RaiseEventBase<T>(NamedEventId namedEventId, Origin target,SubscriptionData subscriptionData, ref T args, bool oneShot)
+    private bool CanRaiseEvent<T>(
+        NamedEventId namedEventId,
+        Locality target,
+        bool oneShot,
+        [NotNullWhen(true)] out NamedEventData? data)
+    {
+        if (!_eventData.TryGetValue((typeof(T), namedEventId), out data))
+            return false;
+        if ((data.AllowedOrigins & target) != Locality.None)
+            return UpdateOneShot(data, oneShot);
+        _sawmill.Warning($"Tried to raise event with id: {namedEventId} with invalid target: {target}!");
+        return false;
+    }
+
+    private bool UpdateOneShot(
+        NamedEventData namedEventData,
+        bool oneShot)
+    {
+        if (!oneShot) return true;
+        if (namedEventData.Triggered)
+            return false;
+        namedEventData.Triggered = true;
+
+        return true;
+    }
+
+    private void RaiseEventBase<T>(
+        NamedEventId namedEventId,
+        Locality target,
+        NamedEventData namedEventData,
+        ref T args,
+        bool oneShot,
+        INetChannel? channel = null)
         where T : notnull
     {
-        if ((subscriptionData.AllowedOrigins & target) == Origin.None)
-        {
-            _sawmill.Warning($"Tried to raise event with id: {namedEventId} with invalid target: {target}!");
-            return;
-        }
-
-        if (oneShot)
-        {
-            if (subscriptionData.Triggered)
-                return;
-            subscriptionData.Triggered = true;
-        }
         switch (target)
         {
-            case Origin.Local:
-                RaiseEventBase( ref Unsafe.As<T, Unit>(ref args), subscriptionData.EnabledSubscriptions);
+            case Locality.Local:
+                RaiseEventBase( ref Unsafe.As<T, Unit>(ref args), namedEventData.EnabledSubscriptions);
                 return;
-            case Origin.Networked:
-                //RaiseNetEventBase( ref Unsafe.As<T, Unit>(ref args), subscriptionData.EnabledSubscriptions);
+            case Locality.Networked:
+                RaiseNetworkEventBase(namedEventId,ref args, oneShot);
                 return;
-            case Origin.Both:
-                RaiseEventBase( ref Unsafe.As<T, Unit>(ref args), subscriptionData.EnabledSubscriptions);
-                //RaiseNetEventBase( ref Unsafe.As<T, Unit>(ref args), subscriptionData.EnabledSubscriptions);
+            case Locality.Both:
+                RaiseEventBase(ref Unsafe.As<T, Unit>(ref args), namedEventData.EnabledSubscriptions);
+                RaiseNetworkEventBase(namedEventId,ref args, oneShot);
                 return;
         }
 
     }
 
-    private static void RaiseNetEventBase(
-        ref Unit unitRef,
-        ValueList<Subscription> subs)
+    private void ReceiveNetEvent<T>(
+        NamedEventId namedEventId,
+        ref T args,
+        bool oneShot) where T: notnull
     {
-        foreach (var sub in subs.Span)
+        if (!_eventData.TryGetValue((typeof(T), namedEventId), out var subData))
         {
-            //TODO: STUB
-              //sub.Listener(ref unitRef);
+            _sawmill.Error($"Could not find event registration for event with ID: {namedEventId}, Type: {typeof(T)}");
+            return;
         }
+        if (!UpdateOneShot(subData, oneShot))
+            return;
+        RaiseEventBase( ref Unsafe.As<T, Unit>(ref args), subData.EnabledSubscriptions);
     }
 
     private static void RaiseEventBase(
@@ -134,7 +167,7 @@ public abstract partial class SharedNamedEventManager
 
     private void CreateSubscription<T>(
         NamedEventId id,
-        Origin origin,
+        Locality locality,
         SubscriptionListenerRef listenerEvent,
         object listenerRef,
         bool byRef
@@ -158,14 +191,14 @@ public abstract partial class SharedNamedEventManager
                 $"eventIsByRef={eventReference} subscriptionIsByRef={byRef}");
         }
 
-        if (!subscriptions.AllowedOrigins.HasFlag(origin))
+        if (!subscriptions.AllowedOrigins.HasFlag(locality))
         {
             throw new InvalidOperationException(
                 $"Attempted to subscribe a NamedEvent handler with invalid source! NamedEventId: {id}! NamedEventArgs={eventType} " +
-                $"NamedEventSource={subscriptions.AllowedOrigins} subscriptionSource={origin}");
+                $"NamedEventSource={subscriptions.AllowedOrigins} subscriptionSource={locality}");
         }
 
-        if (!subscriptions.TryAddSubscription(new Subscription(origin, listenerEvent, listenerRef)))
+        if (!subscriptions.TryAddSubscription(new Subscription(locality, listenerEvent, listenerRef)))
         {
             throw new InvalidOperationException(
                 $"Attempted to subscribe a NamedEvent handler twice! NamedEventId={id} NamedEventArgs={eventType}" +
@@ -176,7 +209,7 @@ public abstract partial class SharedNamedEventManager
 
     private void RemoveSubscription<T>(
         NamedEventId id,
-        Origin origin,
+        Locality locality,
         object subscriber,
         bool byRef,
         bool warnIfMissing = false
@@ -203,11 +236,11 @@ public abstract partial class SharedNamedEventManager
             return;
         }
 
-        if (!subscriptions.AllowedOrigins.HasFlag(origin))
+        if (!subscriptions.AllowedOrigins.HasFlag(locality))
         {
             throw new InvalidOperationException(
                 $"Attempted to unsubscribe a NamedEvent handler with invalid source! NamedEventId: {id}! NamedEventArgs={eventType} " +
-                $"NamedEventSource={subscriptions.AllowedOrigins} subscriptionSource={origin}");
+                $"NamedEventSource={subscriptions.AllowedOrigins} subscriptionSource={locality}");
         }
 
         if (!subscriptions.TryRemoveSubscription(subscriber))

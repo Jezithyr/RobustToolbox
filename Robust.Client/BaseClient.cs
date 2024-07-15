@@ -32,7 +32,7 @@ namespace Robust.Client
         [Dependency] private readonly IGameTiming _timing = default!;
         [Dependency] private readonly IClientGameStateManager _gameStates = default!;
         [Dependency] private readonly ILogManager _logMan = default!;
-        [Dependency] private readonly SharedNamedEventManager _namedEventManager = default!;
+        [Dependency] private readonly NamedEventManager _namedEventManager = default!;
 
         /// <inheritdoc />
         public ushort DefaultPort { get; } = 1212;

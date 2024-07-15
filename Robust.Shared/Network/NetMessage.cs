@@ -1,6 +1,9 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using Lidgren.Network;
 using Robust.Shared.Serialization;
+using Robust.Shared.Utility;
 
 #nullable disable
 
@@ -40,6 +43,11 @@ namespace Robust.Shared.Network
         /// ECS Events between the server and the client.
         /// </summary>
         EntityEvent,
+
+        /// <summary>
+        /// Named Events between the server and the client.
+        /// </summary>
+        NamedEvent,
     }
 
     /// <summary>
@@ -98,12 +106,50 @@ namespace Robust.Shared.Network
                     case MsgGroups.Command:
                         return NetDeliveryMethod.ReliableUnordered;
                     case MsgGroups.String:
+                    case MsgGroups.NamedEvent:
                     case MsgGroups.EntityEvent:
                         return NetDeliveryMethod.ReliableOrdered;
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
             }
+        }
+    }
+
+    [Virtual]
+    public class WrappedNetMessage<T> : NetMessage where T : notnull
+    {
+        public T Data = default!;
+
+        public Type WrappedType => typeof(T);
+
+        public override void ReadFromBuffer(NetIncomingMessage buffer, IRobustSerializer serializer)
+        {
+            Data = ReadTypeFromBuffer<T>(buffer, serializer);
+        }
+
+        public override void WriteToBuffer(NetOutgoingMessage buffer, IRobustSerializer serializer)
+        {
+            WriteTypeToBuffer(Data, buffer, serializer);
+        }
+
+        protected TStored ReadTypeFromBuffer<TStored>(NetIncomingMessage buffer, IRobustSerializer serializer)
+            where TStored: notnull
+        {
+            var length = buffer.ReadVariableInt32();
+            using var stream = new MemoryStream(length);
+            buffer.ReadAlignedMemory(stream, length);
+            return serializer.Deserialize<TStored>(stream);
+        }
+
+        protected void WriteTypeToBuffer<TStored>(TStored data, NetOutgoingMessage buffer, IRobustSerializer serializer)
+            where TStored: notnull
+        {
+            var stream = new MemoryStream();
+            serializer.Serialize(stream, data);
+
+            buffer.WriteVariableInt32((int)stream.Length);
+            buffer.Write(stream.AsSpan());
         }
     }
 }

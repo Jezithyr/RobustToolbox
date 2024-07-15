@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Robust.Shared.NamedEvents;
+using Robust.Shared.Network;
 using Robust.Shared.Utility;
 
 namespace Robust.Shared.GameObjects;
@@ -16,16 +17,17 @@ public  abstract partial class EntitySystem
     {
     }
 
-    protected void RegisterId<T>(string name, string category = SharedNamedEventManager.DefaultCategory) where T: notnull
+    protected void RegisterId<T>(string name, string category = NamedEvents.NamedEventManager.DefaultCategory) where T: notnull
     {
         if (!_canReg)
             throw new InvalidOperationException("NamedEventIds can only be registered in DefineIds");
         RegisterId<T>((name, category));
     }
 
-    protected void RegisterId<T>(NamedEventId namedEventId, Origin locality = Origin.Local) where T: notnull
+    protected void RegisterId<T>(NamedEventId namedEventId, Locality locality = Locality.Local, bool replayCapture = true)
+        where T: notnull
     {
-        NamedEventManager.RegisterNamedEventId(namedEventId, typeof(T), locality, out _);
+        NamedEventManager.RegisterEventId<T>(namedEventId, locality, out _, replayCapture);
         _namedEventIds.GetOrNew(typeof(T)).Add(namedEventId);
     }
 
@@ -46,9 +48,9 @@ public  abstract partial class EntitySystem
     #region Event-Proxies
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void ResetOneShotNamedEvent<T>(NamedEventId namedEventId, Origin origin = Origin.Local) where T : notnull
+    public void ResetOneShotNamedEvent<T>(NamedEventId namedEventId, Locality locality = Locality.Local) where T : notnull
     {
-        NamedEventManager.ResetOneShotEvent<T>(namedEventId, origin);
+        NamedEventManager.ResetOneShotEvent<T>(namedEventId, locality);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -57,7 +59,7 @@ public  abstract partial class EntitySystem
         EntityUid playerUid,
         T args,
         bool oneshot = false,
-        Origin target = Origin.Local) where T : notnull
+        Locality target = Locality.Local) where T : notnull
     {
         if (_playerMan.LocalEntity != playerUid)
             return;
@@ -70,7 +72,7 @@ public  abstract partial class EntitySystem
         EntityUid playerUid,
         ref T args,
         bool oneshot = false,
-        Origin target = Origin.Local) where T : notnull
+        Locality target = Locality.Local) where T : notnull
     {
         if (_playerMan.LocalEntity != playerUid)
             return;
@@ -78,23 +80,86 @@ public  abstract partial class EntitySystem
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void RaiseNamedEventEvent<T>(
+    public void RaiseNamedEvent<T>(
         NamedEventId namedEventId,
         T args,
-        bool oneshot = false,
-        Origin target = Origin.Local) where T : notnull
+        bool oneShot = false,
+        Locality target = Locality.Local,
+        INetChannel? netChannel = null
+        ) where T : notnull
     {
-        NamedEventManager.RaiseEvent(namedEventId, args, oneshot, target);
+        NamedEventManager.RaiseEvent(namedEventId, args, oneShot, target, netChannel);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void RaiseNamedEventEvent<T>(
+    public void RaiseNamedEvent<T>(
         NamedEventId namedEventId,
         ref T args,
-        bool oneshot = false,
-        Origin target = Origin.Local) where T : notnull
+        bool oneShot = false,
+        Locality target = Locality.Local,
+        INetChannel? netChannel = null) where T : notnull
     {
-        NamedEventManager.RaiseEvent(namedEventId, ref args, oneshot, target);
+        NamedEventManager.RaiseEvent(namedEventId, ref args, oneShot, target, netChannel);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void RaiseLocalNamedEvent<T>(
+        NamedEventId namedEventId,
+        T args,
+        bool oneShot = false
+    ) where T : notnull
+    {
+        NamedEventManager.RaiseEvent(namedEventId, args, oneShot, Locality.Local);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void RaiseLocalNamedEvent<T>(
+        NamedEventId namedEventId,
+        ref T args,
+        bool oneShot = false) where T : notnull
+    {
+        NamedEventManager.RaiseEvent(namedEventId, ref args, oneShot, Locality.Local);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void RaiseNetNamedEvent<T>(
+        NamedEventId namedEventId,
+        T args,
+        bool oneShot = false,
+        INetChannel? netChannel = null
+    ) where T : notnull
+    {
+        NamedEventManager.RaiseEvent(namedEventId, args, oneShot, Locality.Networked, netChannel);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void RaiseNetNamedEvent<T>(
+        NamedEventId namedEventId,
+        ref T args,
+        bool oneShot = false,
+        INetChannel? netChannel = null) where T : notnull
+    {
+        NamedEventManager.RaiseEvent(namedEventId, ref args, oneShot, Locality.Networked, netChannel);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void RaiseSharedNamedEvent<T>(
+        NamedEventId namedEventId,
+        T args,
+        bool oneShot = false,
+        INetChannel? netChannel = null) where T : notnull
+    {
+        NamedEventManager.RaiseEvent(namedEventId, args, oneShot, Locality.Both, netChannel);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void RaiseSharedNamedEvent<T>(
+        NamedEventId namedEventId,
+        ref T args,
+        bool oneShot = false,
+        INetChannel? netChannel = null) where T : notnull
+    {
+        NamedEventManager.RaiseEvent(namedEventId, ref args, oneShot, Locality.Both, netChannel);
     }
 
     #endregion
@@ -107,7 +172,7 @@ public  abstract partial class EntitySystem
         NamedEventHandler<T> eventHandler)
         where T : notnull
     {
-        NamedEventManager.SubscribeNamedEventHandler(id, eventHandler, Origin.Local);
+        NamedEventManager.SubscribeNamedEventHandler(id, eventHandler, Locality.Local);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -116,7 +181,7 @@ public  abstract partial class EntitySystem
         NamedEventRefHandler<T> eventHandler)
         where T : notnull
     {
-        NamedEventManager.SubscribeNamedEventHandler(id, eventHandler, Origin.Local);
+        NamedEventManager.SubscribeNamedEventHandler(id, eventHandler, Locality.Local);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -125,7 +190,7 @@ public  abstract partial class EntitySystem
         NamedEventHandler<T> eventHandler)
         where T : notnull
     {
-        NamedEventManager.SubscribeNamedEventHandler(id, eventHandler, Origin.Networked);
+        NamedEventManager.SubscribeNamedEventHandler(id, eventHandler, Locality.Networked);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -134,7 +199,7 @@ public  abstract partial class EntitySystem
         NamedEventRefHandler<T> eventHandler)
         where T : notnull
     {
-        NamedEventManager.SubscribeNamedEventHandler(id, eventHandler, Origin.Networked);
+        NamedEventManager.SubscribeNamedEventHandler(id, eventHandler, Locality.Networked);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -143,7 +208,7 @@ public  abstract partial class EntitySystem
         NamedEventHandler<T> eventHandler)
         where T : notnull
     {
-        NamedEventManager.SubscribeNamedEventHandler(id, eventHandler, Origin.Both);
+        NamedEventManager.SubscribeNamedEventHandler(id, eventHandler, Locality.Both);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -152,87 +217,87 @@ public  abstract partial class EntitySystem
         NamedEventRefHandler<T> eventHandler)
         where T : notnull
     {
-        NamedEventManager.SubscribeNamedEventHandler(id, eventHandler, Origin.Both);
+        NamedEventManager.SubscribeNamedEventHandler(id, eventHandler, Locality.Both);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SubscribeNamedEventHandler<T>(
         NamedEventId id,
         NamedEventHandler<T> eventHandler,
-        Origin origin)
+        Locality locality)
         where T : notnull
     {
-        NamedEventManager.SubscribeNamedEventHandler(id, eventHandler, origin);
+        NamedEventManager.SubscribeNamedEventHandler(id, eventHandler, locality);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SubscribeNamedEventHandler<T>(
         NamedEventId id,
         NamedEventRefHandler<T> eventHandler,
-        Origin origin)
+        Locality locality)
         where T : notnull
     {
-        NamedEventManager.SubscribeNamedEventHandler(id, eventHandler, origin);
+        NamedEventManager.SubscribeNamedEventHandler(id, eventHandler, locality);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void UnSubscribeNamedEventHandler<T>(
         NamedEventId id,
         NamedEventHandler<T> eventHandler,
-        Origin origin)
+        Locality locality)
         where T : notnull
     {
-        NamedEventManager.UnsubscribeNamedEventHandler(id, eventHandler, origin);
+        NamedEventManager.UnsubscribeNamedEventHandler(id, eventHandler, locality);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void UnSubscribeNamedEventHandler<T>(
         NamedEventId id,
         NamedEventRefHandler<T> eventHandler,
-        Origin origin)
+        Locality locality)
         where T : notnull
     {
-        NamedEventManager.UnsubscribeNamedEventHandler(id, eventHandler, origin);
+        NamedEventManager.UnsubscribeNamedEventHandler(id, eventHandler, locality);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SubscribeAllNamedEventHandlers<T>(
         NamedEventHandler<T> namedEventHandler,
-        Origin originFilter = Origin.Both,
+        Locality localityFilter = Locality.Both,
         string? categoryFilter = null,
         params NamedEventId[] ignoreList) where T: notnull
     {
-        NamedEventManager.SubscribeAllNamedEventHandlers(namedEventHandler, originFilter, categoryFilter, ignoreList);
+        NamedEventManager.SubscribeAllNamedEventHandlers(namedEventHandler, localityFilter, categoryFilter, ignoreList);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SubscribeAllNamedEventHandlers<T>(
         NamedEventRefHandler<T> namedEventHandler,
-        Origin originFilter = Origin.Both,
+        Locality localityFilter = Locality.Both,
         string? categoryFilter = null,
         params NamedEventId[] ignoreList) where T: notnull
     {
-        NamedEventManager.SubscribeAllNamedEventHandlers(namedEventHandler, originFilter, categoryFilter, ignoreList);
+        NamedEventManager.SubscribeAllNamedEventHandlers(namedEventHandler, localityFilter, categoryFilter, ignoreList);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void UnsubscribeAllNamedEventHandlers<T>(
         NamedEventHandler<T> namedEventHandler,
-        Origin originFilter = Origin.Both,
+        Locality localityFilter = Locality.Both,
         string? categoryFilter = null,
         params NamedEventId[] ignoreList) where T: notnull
     {
-        NamedEventManager.UnsubscribeAllNamedEventHandlers(namedEventHandler, originFilter, categoryFilter, ignoreList);
+        NamedEventManager.UnsubscribeAllNamedEventHandlers(namedEventHandler, localityFilter, categoryFilter, ignoreList);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void UnsubscribeAllNamedEventHandlers<T>(
         NamedEventRefHandler<T> namedEventHandler,
-        Origin originFilter = Origin.Both,
+        Locality localityFilter = Locality.Both,
         string? categoryFilter = null,
         params NamedEventId[] ignoreList) where T: notnull
     {
-        NamedEventManager.UnsubscribeAllNamedEventHandlers(namedEventHandler, originFilter, categoryFilter, ignoreList);
+        NamedEventManager.UnsubscribeAllNamedEventHandlers(namedEventHandler, localityFilter, categoryFilter, ignoreList);
     }
 
     #endregion

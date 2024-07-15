@@ -120,7 +120,6 @@ namespace Robust.Shared.Network
         ///     Registers a NetMessage to be sent or received.
         /// </summary>
         /// <typeparam name="T">Type to register.</typeparam>
-        /// <param name="name">String ID of the message.</param>
         /// <param name="rxCallback">Callback function to process the received message.</param>
         /// <param name="accept">
         /// The side of the network this message is accepted on.
@@ -129,6 +128,23 @@ namespace Robust.Shared.Network
         void RegisterNetMessage<T>(ProcessMessage<T>? rxCallback = null,
             NetMessageAccept accept = NetMessageAccept.Both)
             where T : NetMessage, new();
+
+        /// <summary>
+        ///     Registers a NetMessage to be sent or received.
+        /// </summary>
+        /// <typeparam name="T">Wrapped Type to register.</typeparam>
+        /// <param name="rxCallback">Callback function to process the received message.</param>
+        /// <param name="accept">
+        /// The side of the network this message is accepted on.
+        /// If we are not on the side specified, the receive callback will not be registered even if provided.
+        /// </param>
+        void RegisterWrappedNetMessage<T>(
+            ProcessMessage<WrappedNetMessage<T>>? rxCallback = null,
+            NetMessageAccept accept = NetMessageAccept.Both)
+            where T : notnull
+        {
+            RegisterNetMessage(rxCallback, accept);
+        }
 
         /// <summary>
         ///     Creates a new NetMessage to be sent.

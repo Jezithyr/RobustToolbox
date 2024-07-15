@@ -107,7 +107,7 @@ namespace Robust.Server
         [Dependency] private readonly IGamePrototypeLoadManager _protoLoadMan = default!;
         [Dependency] private readonly NetworkResourceManager _netResMan = default!;
         [Dependency] private readonly IReflectionManager _refMan = default!;
-        [Dependency] private readonly SharedNamedEventManager _namedEventMan = default!;
+        [Dependency] private readonly NamedEventManager _namedEventMan = default!;
 
         private readonly Stopwatch _uptimeStopwatch = new();
         private CommandLineArgs? _commandLineArgs;

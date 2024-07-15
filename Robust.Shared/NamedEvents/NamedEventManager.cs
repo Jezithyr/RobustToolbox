@@ -2,13 +2,15 @@ using System;
 using System.Collections.Frozen;
 using Robust.Shared.IoC;
 using Robust.Shared.Log;
+using Robust.Shared.Network;
 using EntitySystem = Robust.Shared.GameObjects.EntitySystem;
 
 namespace Robust.Shared.NamedEvents;
 
-public abstract partial class SharedNamedEventManager
+public sealed partial class NamedEventManager
 {
     [Dependency] private ILogManager _logManager = default!;
+    [Dependency] private INetManager _netManager = default!;
 
     public const string DefaultCategory = "unsorted";
     public const string LogName = "rtgt";
@@ -43,7 +45,7 @@ public abstract partial class SharedNamedEventManager
         SetRegistrationLock();
         _eventDataUnfrozen.Clear();
         _eventData = _eventDataUnfrozen.ToFrozenDictionary();
-        Systems.Clear();
+        _systems.Clear();
     }
 
 
@@ -51,7 +53,7 @@ public abstract partial class SharedNamedEventManager
     {
         if (_registrationLock)
             throw new InvalidOperationException("Registrations are locked. Do not manually call this method!");
-        Systems.Add(system);
+        _systems.Add(system);
         _sawmill.Debug($"Registered {system.GetType()} as a named event system!");
     }
 }
