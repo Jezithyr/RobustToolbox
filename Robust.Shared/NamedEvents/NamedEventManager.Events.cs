@@ -18,7 +18,7 @@ public sealed partial class NamedEventManager
     private FrozenDictionary<SubscriptionId, NamedEventData> _eventData =
         FrozenDictionary<SubscriptionId, NamedEventData>.Empty;
     private readonly Dictionary<SubscriptionId, NamedEventData> _eventDataUnfrozen = new();
-    private readonly List<EntitySystem> _systems = new();
+    private readonly List<EntitySystem> _systemsWithIds = new();
     internal void RegisterEventId<T>(NamedEventId id, Locality locality, out NamedEventData subs, bool replayCaptured = true) where T: notnull
     {
         if (locality == Locality.None)

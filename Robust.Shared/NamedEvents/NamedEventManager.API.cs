@@ -153,7 +153,7 @@ public sealed partial class NamedEventManager
         string? categoryFilter = null,
         params NamedEventId[] ignoreList) where T: notnull
     {
-        foreach (var config in _systems)
+        foreach (var config in _systemsWithIds)
         {
             if (!config.TryGetNamedEventIds(typeof(T), out var data))
                 continue;
@@ -175,7 +175,7 @@ public sealed partial class NamedEventManager
         string? categoryFilter = null,
         params NamedEventId[] ignoreList) where T: notnull
     {
-        foreach (var config in _systems)
+        foreach (var config in _systemsWithIds)
         {
             if (!config.TryGetNamedEventIds(typeof(T), out var data))
                 continue;
@@ -197,7 +197,7 @@ public sealed partial class NamedEventManager
         string? categoryFilter = null,
         params NamedEventId[] ignoreList) where T: notnull
     {
-        foreach (var config in _systems)
+        foreach (var config in _systemsWithIds)
         {
             if (!config.TryGetNamedEventIds(typeof(T), out var data))
                 continue;
@@ -219,7 +219,7 @@ public sealed partial class NamedEventManager
         string? categoryFilter = null,
         params NamedEventId[] ignoreList) where T: notnull
     {
-        foreach (var config in _systems)
+        foreach (var config in _systemsWithIds)
         {
             if (!config.TryGetNamedEventIds(typeof(T), out var data))
                 continue;

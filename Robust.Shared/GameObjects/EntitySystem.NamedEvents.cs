@@ -10,7 +10,10 @@ namespace Robust.Shared.GameObjects;
 
 public  abstract partial class EntitySystem
 {
-    private readonly Dictionary<Type,List<NamedEventId>> _namedEventIds = new();
+    private Dictionary<Type,List<NamedEventId>>? _namedEventIds = null;
+
+    public bool RegistersNamedEventIds => _namedEventIds != null;
+
     private bool _canReg;
 
     protected virtual void RegisterNamedEventIds(bool isServer)
@@ -28,21 +31,23 @@ public  abstract partial class EntitySystem
         where T: notnull
     {
         NamedEventManager.RegisterEventId<T>(namedEventId, locality, out _, replayCapture);
+        _namedEventIds ??= new();
         _namedEventIds.GetOrNew(typeof(T)).Add(namedEventId);
     }
 
     private void SetupNamedEvents()
     {
         //I know this looks cursed, but it's needed to idiot-proof this
-        NamedEventManager.RegisterNamedEventSystem(this);
+        NamedEventManager.RegisterSystemWithNamedEventIds(this);
         _canReg = true;
         RegisterNamedEventIds(NetManager.IsServer);
         _canReg = false;
     }
 
-    internal bool TryGetNamedEventIds(Type type,[NotNullWhen(true)] out List<NamedEventId>? sensorIds)
+    internal bool TryGetNamedEventIds(Type type,[NotNullWhen(true)] out List<NamedEventId>? namedEventIds)
     {
-        return _namedEventIds.TryGetValue(type, out sensorIds);
+        namedEventIds = null;
+        return _namedEventIds != null && _namedEventIds.TryGetValue(type, out namedEventIds);
     }
 
     #region Event-Proxies

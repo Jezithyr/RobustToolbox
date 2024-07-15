@@ -45,15 +45,17 @@ public sealed partial class NamedEventManager
         SetRegistrationLock();
         _eventDataUnfrozen.Clear();
         _eventData = _eventDataUnfrozen.ToFrozenDictionary();
-        _systems.Clear();
+        _systemsWithIds.Clear();
     }
 
 
-    internal void RegisterNamedEventSystem(EntitySystem system)
+    internal void RegisterSystemWithNamedEventIds(EntitySystem system)
     {
         if (_registrationLock)
             throw new InvalidOperationException("Registrations are locked. Do not manually call this method!");
-        _systems.Add(system);
+        if (!system.RegistersNamedEventIds)
+            return;
+        _systemsWithIds.Add(system);
         _sawmill.Debug($"Registered {system.GetType()} as a named event system!");
     }
 }
