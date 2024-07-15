@@ -8,10 +8,10 @@ using Robust.Client.Utility;
 using Robust.Shared;
 using Robust.Shared.Configuration;
 using Robust.Shared.Enums;
-using Robust.Shared.GameTelemetry;
 using Robust.Shared.IoC;
 using Robust.Shared.Log;
 using Robust.Shared.Map;
+using Robust.Shared.NamedEvents;
 using Robust.Shared.Network;
 using Robust.Shared.Network.Messages;
 using Robust.Shared.Player;
@@ -32,7 +32,7 @@ namespace Robust.Client
         [Dependency] private readonly IGameTiming _timing = default!;
         [Dependency] private readonly IClientGameStateManager _gameStates = default!;
         [Dependency] private readonly ILogManager _logMan = default!;
-        [Dependency] private readonly GameTelemetryManager _teleMan = default!;
+        [Dependency] private readonly NamedEventManager _namedEventMan = default!;
 
         /// <inheritdoc />
         public ushort DefaultPort { get; } = 1212;
@@ -239,9 +239,9 @@ namespace Robust.Client
 
         private void GameStartedSetup()
         {
-            _teleMan.Startup();
+            _namedEventMan.Startup();
             _entityManager.Startup();
-            _teleMan.PostStart();
+            _namedEventMan.PostStart();
             _mapManager.Startup();
 
             _timing.ResetSimTime(_timeBase);
@@ -254,7 +254,7 @@ namespace Robust.Client
             _gameStates.Reset();
             _playMan.Shutdown();
             _entityManager.Shutdown();
-            _teleMan.Shutdown();
+            _namedEventMan.Shutdown();
             _mapManager.Shutdown();
             _discord.ClearPresence();
             Reset();
