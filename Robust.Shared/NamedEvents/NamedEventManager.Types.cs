@@ -35,55 +35,57 @@ public record struct NamedEventId
 }
 
 internal sealed record GameSensorHandlerData(
-    ValueList<SensorListener> EnabledHandlers,
-    ValueList<SensorListener> DisabledHandlers)
+    ValueList<Subscription> EnabledHandlers,
+    ValueList<Subscription> DisabledHandlers)
 {
 }
 
 internal struct Unit;
-    internal delegate void SensorRefListener(ref Unit ev);
+    internal delegate void SubscriptionListenerRef(ref Unit ev);
 
-    internal sealed record SensorData
+    internal sealed record SubscriptionData
     {
-        internal SensorOrigin Origin { get; set; }
-        private ValueList<SensorListener> _sensors;
-        public SensorData() {}
+        internal Origin AllowedOrigins { get; set; }
+        private ValueList<Subscription> _subscriptions;
+        public SubscriptionData()
+        {
+        }
 
-        public ref ValueList<SensorListener> EnabledSensors => ref _sensors;
-        public bool HasSensor(SensorListener sensor) => _sensors.Contains(sensor);
+        public ref ValueList<Subscription> EnabledSubscriptions => ref _subscriptions;
+        public bool HasSubscription(Subscription sensor) => _subscriptions.Contains(sensor);
         public bool Triggered { get; set; }
 
-        public bool Contains(SensorListener listener) =>
-            _sensors.Contains(listener);
+        public bool Contains(Subscription listener) =>
+            _subscriptions.Contains(listener);
 
 
-        public bool TrySubscribeSensor(SensorListener sensor)
+        internal bool TryAddSubscription(Subscription sensor)
         {
             if (Contains(sensor))
                 return false;
-            _sensors.Add(sensor);
+            _subscriptions.Add(sensor);
             return true;
         }
 
-        public bool TryUnSubscribeSensor(SensorListener sensor)
+        internal bool TryRemoveSubscription(object equalityToken)
         {
-            for (int index = 0; index < _sensors.Count; index++)
+            for (int index = 0; index < _subscriptions.Count; index++)
             {
-                if (_sensors[index].EqualityToken != sensor.EqualityToken)
+                if (_subscriptions[index].EqualityToken != equalityToken)
                     continue;
-                _sensors.RemoveAt(index);
+                _subscriptions.RemoveAt(index);
                 return true;
             }
             return false;
         }
     }
 
-    internal readonly record struct SensorListener(
-        SensorOrigin Mask,
-        SensorRefListener Listener,
+    internal readonly record struct Subscription(
+        Origin Mask,
+        SubscriptionListenerRef Listener,
         object EqualityToken)
     {
-        public bool Equals(SensorListener other)
+        public bool Equals(Subscription other)
         {
             return Mask == other.Mask && Equals(EqualityToken, other.EqualityToken);
         }
@@ -99,12 +101,11 @@ public delegate void NamedEventRefHandler<T>(NamedEventId id,ref T ev) where T :
 public delegate void NamedEventHandler<T>(NamedEventId id,T ev) where T : notnull;
 
 [Flags]
-public enum SensorOrigin : byte
+public enum Origin : byte
 {
     None = 0,
     Local = 1 << 0,
-    Networked = 2 << 0,
-
+    Networked = 1 << 2,
     Both = Local | Networked,
 }
 

@@ -7,6 +7,7 @@ using JetBrains.Annotations;
 using Robust.Shared.IoC;
 using Robust.Shared.Localization;
 using Robust.Shared.Log;
+using Robust.Shared.NamedEvents;
 using Robust.Shared.Network;
 using Robust.Shared.Player;
 using Robust.Shared.Reflection;
@@ -25,6 +26,8 @@ namespace Robust.Shared.GameObjects
     {
         [Dependency] protected readonly EntityManager EntityManager = default!;
         [Dependency] protected readonly ILogManager LogManager = default!;
+        [Dependency] protected NamedEventManager NamedEventManager = default!;
+        [Dependency] protected INetManager NetManager = default!;
         [Dependency] private readonly ISharedPlayerManager _playerMan = default!;
         [Dependency] private readonly IReplayRecordingManager _replayMan = default!;
         [Dependency] protected readonly ILocalizationManager Loc = default!;
@@ -218,7 +221,7 @@ namespace Robust.Shared.GameObjects
         protected virtual void PostInject()
         {
             Log = LogManager.GetSawmill(SawmillName);
-
+            SetupNamedEvents();
 #if !DEBUG
             Log.Level = LogLevel.Info;
 #endif
