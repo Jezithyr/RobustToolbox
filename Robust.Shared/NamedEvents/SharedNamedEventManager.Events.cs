@@ -10,7 +10,7 @@ using EntitySystem = Robust.Shared.GameObjects.EntitySystem;
 
 namespace Robust.Shared.NamedEvents;
 
-public sealed partial class NamedEventManager
+public abstract partial class SharedNamedEventManager
 {
     private bool _registrationLock = true; //prevent skill issues with registration
 

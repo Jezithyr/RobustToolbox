@@ -26,7 +26,7 @@ namespace Robust.Shared.GameObjects
     {
         [Dependency] protected readonly EntityManager EntityManager = default!;
         [Dependency] protected readonly ILogManager LogManager = default!;
-        [Dependency] protected NamedEventManager NamedEventManager = default!;
+        [Dependency] protected SharedNamedEventManager NamedEventManager = default!;
         [Dependency] protected INetManager NetManager = default!;
         [Dependency] private readonly ISharedPlayerManager _playerMan = default!;
         [Dependency] private readonly IReplayRecordingManager _replayMan = default!;

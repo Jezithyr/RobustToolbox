@@ -10,6 +10,7 @@ using Robust.Client.Graphics;
 using Robust.Client.Graphics.Clyde;
 using Robust.Client.Input;
 using Robust.Client.Map;
+using Robust.Client.NamedEvents;
 using Robust.Client.Placement;
 using Robust.Client.Player;
 using Robust.Client.Profiling;
@@ -35,6 +36,7 @@ using Robust.Shared.ContentPack;
 using Robust.Shared.GameObjects;
 using Robust.Shared.IoC;
 using Robust.Shared.Map;
+using Robust.Shared.NamedEvents;
 using Robust.Shared.Network;
 using Robust.Shared.Physics;
 using Robust.Shared.Player;
@@ -100,6 +102,7 @@ namespace Robust.Client
             deps.Register<ProfViewManager>();
             deps.Register<IGamePrototypeLoadManager, GamePrototypeLoadManager>();
             deps.Register<NetworkResourceManager>();
+            deps.Register<SharedNamedEventManager, NamedEventManager>();
 
             switch (mode)
             {

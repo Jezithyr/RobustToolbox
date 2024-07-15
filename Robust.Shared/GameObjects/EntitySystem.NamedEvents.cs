@@ -16,7 +16,7 @@ public  abstract partial class EntitySystem
     {
     }
 
-    protected void RegisterId<T>(string name, string category = NamedEventManager.DefaultCategory) where T: notnull
+    protected void RegisterId<T>(string name, string category = SharedNamedEventManager.DefaultCategory) where T: notnull
     {
         if (!_canReg)
             throw new InvalidOperationException("NamedEventIds can only be registered in DefineIds");

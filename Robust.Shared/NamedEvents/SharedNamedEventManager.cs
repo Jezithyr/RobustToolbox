@@ -2,15 +2,13 @@ using System;
 using System.Collections.Frozen;
 using Robust.Shared.IoC;
 using Robust.Shared.Log;
-using Robust.Shared.Network;
 using EntitySystem = Robust.Shared.GameObjects.EntitySystem;
 
 namespace Robust.Shared.NamedEvents;
 
-public sealed partial class NamedEventManager
+public abstract partial class SharedNamedEventManager
 {
     [Dependency] private ILogManager _logManager = default!;
-    [Dependency] private INetManager _netManager = default!;
 
     public const string DefaultCategory = "unsorted";
     public const string LogName = "rtgt";

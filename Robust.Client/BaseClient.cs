@@ -32,7 +32,7 @@ namespace Robust.Client
         [Dependency] private readonly IGameTiming _timing = default!;
         [Dependency] private readonly IClientGameStateManager _gameStates = default!;
         [Dependency] private readonly ILogManager _logMan = default!;
-        [Dependency] private readonly NamedEventManager _namedEventMan = default!;
+        [Dependency] private readonly SharedNamedEventManager _namedEventManager = default!;
 
         /// <inheritdoc />
         public ushort DefaultPort { get; } = 1212;
@@ -239,9 +239,9 @@ namespace Robust.Client
 
         private void GameStartedSetup()
         {
-            _namedEventMan.Startup();
+            _namedEventManager.Startup();
             _entityManager.Startup();
-            _namedEventMan.PostStart();
+            _namedEventManager.PostStart();
             _mapManager.Startup();
 
             _timing.ResetSimTime(_timeBase);
@@ -254,7 +254,7 @@ namespace Robust.Client
             _gameStates.Reset();
             _playMan.Shutdown();
             _entityManager.Shutdown();
-            _namedEventMan.Shutdown();
+            _namedEventManager.Shutdown();
             _mapManager.Shutdown();
             _discord.ClearPresence();
             Reset();

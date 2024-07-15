@@ -6,7 +6,6 @@ using Robust.Shared.GameObjects;
 using Robust.Shared.IoC;
 using Robust.Shared.Localization;
 using Robust.Shared.Log;
-using Robust.Shared.NamedEvents;
 using Robust.Shared.Network;
 using Robust.Shared.Physics;
 using Robust.Shared.Physics.Collision;
@@ -51,7 +50,6 @@ namespace Robust.Shared
             deps.Register<HttpClientHolder>();
             deps.Register<RobustMemoryManager>();
             deps.Register<EntityConsoleHost>();
-            deps.Register<NamedEventManager>();
         }
     }
 }

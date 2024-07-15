@@ -16,7 +16,7 @@ public record struct NamedEventId
     public readonly string Category;
     [DataField(readOnly:true)]
     public readonly int Hash;
-    NamedEventId(string name, string category = NamedEventManager.DefaultCategory)
+    NamedEventId(string name, string category = SharedNamedEventManager.DefaultCategory)
     {
         Name = name;
         Category = category;

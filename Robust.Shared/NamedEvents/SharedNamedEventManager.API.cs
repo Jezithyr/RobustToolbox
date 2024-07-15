@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace Robust.Shared.NamedEvents;
 
-public sealed partial class NamedEventManager
+public abstract partial class SharedNamedEventManager
 {
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
