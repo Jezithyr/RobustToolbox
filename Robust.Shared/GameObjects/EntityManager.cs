@@ -96,7 +96,7 @@ namespace Robust.Shared.GameObjects
 
         public event Action<IEntityManager>? OnInitialized = null;
 
-        public event Action<IEntityManager>? OnStartup = null;
+        public event Action<IEntityManager>? OnStarted = null;
 
         public event Action<IEntityManager>? OnShutdown = null;
 
@@ -252,7 +252,7 @@ namespace Robust.Shared.GameObjects
             _physicsQuery = GetEntityQuery<PhysicsComponent>();
             _actorQuery = GetEntityQuery<ActorComponent>();
             _entityConsoleHost.Startup();
-            OnStartup?.Invoke(this);
+            OnStarted?.Invoke(this);
         }
 
         public virtual void Shutdown()

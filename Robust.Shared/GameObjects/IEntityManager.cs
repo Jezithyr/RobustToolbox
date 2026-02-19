@@ -51,7 +51,7 @@ namespace Robust.Shared.GameObjects
         IEventBus EventBus { get; }
 
         event Action<IEntityManager>? OnInitialized;
-        event Action<IEntityManager>? OnStartup;
+        event Action<IEntityManager>? OnStarted;
         event Action<IEntityManager>? OnShutdown;
 
         event Action<IEntityManager>? OnCleanup;
