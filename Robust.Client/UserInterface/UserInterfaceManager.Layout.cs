@@ -115,13 +115,13 @@ internal sealed partial class UserInterfaceManager
 
         public void ControlAddedToTree(Control control)
         {
-            _controlEnteredTreeDelegate?.Invoke(control);
+            OnControlEnteredTree?.Invoke(control);
         }
 
         public void ControlRemovedFromTree(Control control)
         {
             ControlHidden(control);
-            _controlExitedTreeDelegate?.Invoke(control);
+            OnControlExitedTree?.Invoke(control);
         }
 
         public void PushModal(Control modal)
