@@ -94,6 +94,14 @@ namespace Robust.Shared.GameObjects
         public event Action<Entity<MetaDataComponent>>? EntityInitialized;
         public event Action<Entity<MetaDataComponent>>? EntityDeleted;
 
+        public event Action<IEntityManager>? OnInitialized = null;
+
+        public event Action<IEntityManager>? OnStartup = null;
+
+        public event Action<IEntityManager>? OnShutdown = null;
+
+        public event Action<IEntityManager>? OnCleanup = null;
+
         /// <summary>
         /// Internal termination event handlers. This is mainly for exception tolerance, we want to ensure that PVS,
         /// and other important engine systems can get updated before some content code throws an exception.
@@ -156,6 +164,7 @@ namespace Robust.Shared.GameObjects
 #endif
 
             Initialized = true;
+            OnInitialized?.Invoke(this);
         }
 
         /// <summary>
@@ -243,11 +252,13 @@ namespace Robust.Shared.GameObjects
             _physicsQuery = GetEntityQuery<PhysicsComponent>();
             _actorQuery = GetEntityQuery<ActorComponent>();
             _entityConsoleHost.Startup();
+            OnStartup?.Invoke(this);
         }
 
         public virtual void Shutdown()
         {
             ShuttingDown = true;
+            OnShutdown?.Invoke(this);
             FlushEntities();
             EventBusInternal.ClearSubscriptions();
             _entitySystemManager.Shutdown();
@@ -261,6 +272,8 @@ namespace Robust.Shared.GameObjects
         {
             _componentFactory.ComponentsAdded -= OnComponentsAdded;
             ShuttingDown = true;
+            OnCleanup?.Invoke(this);
+            OnShutdown?.Invoke(this);
             FlushEntities();
             _entitySystemManager.Clear();
             EventBusInternal.Dispose();

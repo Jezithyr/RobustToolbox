@@ -53,6 +53,10 @@ namespace Robust.Client.UserInterface
         [Dependency] private readonly IRuntimeLog _runtime = default!;
         [Dependency] private readonly IClipboardManager _clipboard = null!;
 
+
+        public event Action<Control>? OnControlEnteredTree = null;
+        public event Action<Control>? OnControlExitedTree = null;
+
         private IAudioSource? _clickSource;
         private IAudioSource? _hoverSource;
 

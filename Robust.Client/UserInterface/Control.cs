@@ -325,6 +325,7 @@ namespace Robust.Client.UserInterface
         private void _enteredTree()
         {
             EnteredTree();
+            UserInterfaceManagerInternal.ControlAddedToTree(this);
         }
 
 

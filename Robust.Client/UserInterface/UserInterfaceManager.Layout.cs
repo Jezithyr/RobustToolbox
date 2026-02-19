@@ -100,12 +100,6 @@ internal sealed partial class UserInterfaceManager
 
         public void ControlHidden(Control control)
         {
-            // Does the same thing but it could later be changed so..
-            ControlRemovedFromTree(control);
-        }
-
-        public void ControlRemovedFromTree(Control control)
-        {
             if (control.Root?.StoredKeyboardFocus == control)
                 control.Root.StoredKeyboardFocus = null;
 
@@ -117,6 +111,17 @@ internal sealed partial class UserInterfaceManager
 
             if (control == CurrentlyHovered)
                 UpdateHovered();
+        }
+
+        public void ControlAddedToTree(Control control)
+        {
+            _controlEnteredTreeDelegate?.Invoke(control);
+        }
+
+        public void ControlRemovedFromTree(Control control)
+        {
+            ControlHidden(control);
+            _controlExitedTreeDelegate?.Invoke(control);
         }
 
         public void PushModal(Control modal)

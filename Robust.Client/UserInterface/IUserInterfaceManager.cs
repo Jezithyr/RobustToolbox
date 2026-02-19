@@ -54,6 +54,10 @@ namespace Robust.Client.UserInterface
 
         Control? CurrentlyHovered { get; }
 
+        public event Action<Control>? OnControlEnteredTree;
+
+        public event Action<Control>? OnControlExitedTree;
+
         /// <summary>
         ///     Gets the default UIScale that we will use if <see cref="CVars.DisplayUIScale"/> gets set to 0.
         ///     Based on the OS-assigned window scale factor.

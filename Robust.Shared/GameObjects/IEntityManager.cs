@@ -50,6 +50,12 @@ namespace Robust.Shared.GameObjects
         IEntityNetworkManager EntityNetManager { get; }
         IEventBus EventBus { get; }
 
+        event Action<IEntityManager>? OnInitialized;
+        event Action<IEntityManager>? OnStartup;
+        event Action<IEntityManager>? OnShutdown;
+
+        event Action<IEntityManager>? OnCleanup;
+
         #region Entity Management
 
         event Action<Entity<MetaDataComponent>>? EntityAdded;

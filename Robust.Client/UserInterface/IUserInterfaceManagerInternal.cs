@@ -38,6 +38,8 @@ namespace Robust.Client.UserInterface
 
         void ControlRemovedFromTree(Control control);
 
+        void ControlAddedToTree(Control control);
+
         void RemoveModal(Control modal);
 
         void Render(IRenderHandle renderHandle);
