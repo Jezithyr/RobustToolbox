@@ -57,6 +57,19 @@ namespace Robust.Shared.GameObjects
             where TComp : IComponent
             where TEvent : notnull;
 
+        void EnsureLocalEvent<TComp, TEvent>(
+            EntityEventRefHandler<TComp, TEvent> handler)
+            where TComp : IComponent
+            where TEvent : notnull;
+
+        void EnsureLocalEvent<TComp, TEvent>(
+            EntityEventRefHandler<TComp, TEvent> handler,
+            Type orderType,
+            Type[]? before = null,
+            Type[]? after = null)
+            where TComp : IComponent
+            where TEvent : notnull;
+
         #endregion
 
         void UnsubscribeLocalEvent<TComp, TEvent>()
@@ -308,6 +321,36 @@ namespace Robust.Shared.GameObjects
             EntAddSubscription(CompIdx.Index<TComp>(), typeof(TComp), typeof(TEvent), EventHandler, orderType, before, after);
         }
 
+        public void EnsureLocalEvent<TComp, TEvent>(
+            EntityEventRefHandler<TComp, TEvent> handler)
+            where TComp : IComponent
+            where TEvent : notnull
+        {
+            void EventHandler(EntityUid uid, IComponent comp, ref Unit ev)
+            {
+                ref var tev = ref Unsafe.As<Unit, TEvent>(ref ev);
+                handler(new Entity<TComp>(uid, (TComp) comp), ref tev);
+            }
+            EntEnsureSubscription(CompIdx.Index<TComp>(), typeof(TComp), typeof(TEvent), EventHandler);
+        }
+
+        public void EnsureLocalEvent<TComp, TEvent>(
+            EntityEventRefHandler<TComp, TEvent> handler,
+            Type orderType,
+            Type[]? before = null,
+            Type[]? after = null)
+            where TComp : IComponent
+            where TEvent : notnull
+        {
+            void EventHandler(EntityUid uid, IComponent comp, ref Unit ev)
+            {
+                ref var tev = ref Unsafe.As<Unit, TEvent>(ref ev);
+                handler(new Entity<TComp>(uid, (TComp) comp), ref tev);
+            }
+            EntEnsureSubscription(CompIdx.Index<TComp>(), typeof(TComp), typeof(TEvent), EventHandler, orderType, before, after);
+        }
+
+
         /// <inheritdoc />
         public void UnsubscribeLocalEvent<TComp, TEvent>()
             where TComp : IComponent
@@ -417,6 +460,47 @@ namespace Robust.Shared.GameObjects
 
             if (!_eventSubsUnfrozen[compType.Value]!.TryAdd(eventType, reg))
                 throw new InvalidOperationException($"Duplicate Subscriptions for comp={compTypeObj}, event={eventType.Name}");
+
+            RegisterCommon(eventType, reg.Ordering, out _);
+            _eventSubsInv.GetOrNew(eventType).Add(compType);
+        }
+
+        private void EntEnsureSubscription(
+            CompIdx compType,
+            Type compTypeObj,
+            Type eventType,
+            DirectedEventHandler handler,
+            Type? orderType = null,
+            Type[]? before = null,
+            Type[]? after = null)
+        {
+            if (_subscriptionLock)
+                throw new InvalidOperationException("Subscription locked.");
+
+            if (!_comFac.TryGetRegistration(compTypeObj, out _))
+            {
+                if (IgnoreUnregisteredComponents)
+                    return;
+
+                throw new InvalidOperationException($"Component is not a valid reference type: {compTypeObj.Name}");
+            }
+
+            if (eventType.GetCustomAttribute<ComponentEventAttribute>() is { } attr)
+            {
+                if (!_compEventSubsUnfrozen[compType.Value]!.TryAdd(eventType, handler))
+                    throw new InvalidOperationException($"Duplicate Subscriptions for comp={compTypeObj}, event={eventType.Name}");
+
+                // An exclusive component-event is only raised via RaiseComponentEvent, hence it don't need a normal
+                // directed event subscription
+                if (attr.Exclusive)
+                    return;
+            }
+
+            var orderData = orderType == null ? null : CreateOrderingData(orderType, before, after);
+            var reg = new DirectedRegistration(orderData, handler);
+
+            if (!_eventSubsUnfrozen[compType.Value]!.TryAdd(eventType, reg))
+                return;
 
             RegisterCommon(eventType, reg.Ordering, out _);
             _eventSubsInv.GetOrNew(eventType).Add(compType);
