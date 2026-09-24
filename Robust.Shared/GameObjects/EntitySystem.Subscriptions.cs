@@ -152,7 +152,7 @@ namespace Robust.Shared.GameObjects
             where TComp : IComponent
             where TEvent : notnull
         {
-            TRelayComp.SubscribeRelayEvent(EntityManager, handler);
+            TRelayComp.SubscribeRelayEvent(EntityManager, handler, GetType(), before, after);
             _subscriptions.Add(new SubRelay<TRelayComp, TEvent>());
         }
 
@@ -164,7 +164,7 @@ namespace Robust.Shared.GameObjects
             where TComp : IComponent
             where TEvent : notnull
         {
-            TRelayComp.SubscribeRelayEvent(EntityManager, handler);
+            TRelayComp.SubscribeRelayEvent(EntityManager, handler, GetType(), before, after);
             _subscriptions.Add(new SubRelay<TRelayComp, TEvent>());
         }
 
@@ -177,7 +177,7 @@ namespace Robust.Shared.GameObjects
             where TEvent : notnull
             where TParentComp : IComponent
         {
-            TRelayComp.SubscribeRelayEvent(EntityManager, handler);
+            TRelayComp.SubscribeRelayEvent(EntityManager, handler, GetType(), before, after);
             _subscriptions.Add(new SubRelay<TRelayComp, TEvent>());
         }
 
@@ -190,7 +190,7 @@ namespace Robust.Shared.GameObjects
             where TEvent : notnull
             where TParentComp : IComponent
         {
-            TRelayComp.SubscribeRelayEvent(EntityManager, handler);
+            TRelayComp.SubscribeRelayEvent(EntityManager, handler, GetType(), before, after);
             _subscriptions.Add(new SubRelay<TRelayComp, TEvent>());
         }
 
