@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Robust.Shared.GameObjects;
 
 public interface IEventRelayComponent<TSelf>
-    where TSelf : Component, IEventRelayComponent<TSelf>
+    where TSelf : IComponent, IEventRelayComponent<TSelf>
 {
     public IReadOnlyCollection<EntityUid> GetChildren { get; }
 
@@ -130,6 +130,26 @@ public interface IEventRelayComponent<TSelf>
             handler.Invoke(args.Parent, (uid,component), ref tempArgs);
             args.Args = tempArgs;
         });
+    }
+
+    public static virtual void UnsubscribeRelays<TEvent>(IEventBus eventBus) where TEvent : notnull
+    {
+        eventBus.UnsubscribeLocalEvent<TSelf, TEvent>();
+    }
+
+    public static virtual void UnsubscribeRelayHandler<TComp, TEvent>(IEventBus eventBus)
+        where TEvent : notnull
+        where TComp : IComponent
+    {
+        eventBus.UnsubscribeLocalEvent<TComp, RelayedEvent<TEvent>>();
+    }
+
+    public static virtual void UnsubscribeRelayHandler<TParentComp,TComp, TEvent>(IEventBus eventBus)
+        where TEvent : notnull
+        where TComp : IComponent
+        where TParentComp : IComponent?
+    {
+        eventBus.UnsubscribeLocalEvent<TComp, RelayedEvent<TParentComp,TEvent>>();
     }
 
 

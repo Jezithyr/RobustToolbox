@@ -144,6 +144,57 @@ namespace Robust.Shared.GameObjects
             _subscriptions.Add(new SubLocal<TComp, TEvent>());
         }
 
+        protected void SubscribeRelayedEvent<TRelayComp,TComp, TEvent>(
+            IEventRelayComponent<TRelayComp>.RelayedEventRefHandler<TComp, TEvent> handler,
+            Type[]? before = null,
+            Type[]? after = null)
+            where TRelayComp: IComponent, IEventRelayComponent<TRelayComp>
+            where TComp : IComponent
+            where TEvent : notnull
+        {
+            TRelayComp.SubscribeRelayEvent(EntityManager, handler);
+            _subscriptions.Add(new SubRelay<TRelayComp, TEvent>());
+        }
+
+        protected void SubscribeRelayedEvent<TRelayComp,TComp, TEvent>(
+            IEventRelayComponent<TRelayComp>.RelayedEventHandler<TComp, TEvent> handler,
+            Type[]? before = null,
+            Type[]? after = null)
+            where TRelayComp: IComponent, IEventRelayComponent<TRelayComp>
+            where TComp : IComponent
+            where TEvent : notnull
+        {
+            TRelayComp.SubscribeRelayEvent(EntityManager, handler);
+            _subscriptions.Add(new SubRelay<TRelayComp, TEvent>());
+        }
+
+        protected void SubscribeRelayedEvent<TRelayComp,TParentComp,TComp, TEvent>(
+            IEventRelayComponent<TRelayComp>.RelayedEventRefHandler<TParentComp,TComp, TEvent> handler,
+            Type[]? before = null,
+            Type[]? after = null)
+            where TRelayComp: IComponent, IEventRelayComponent<TRelayComp>
+            where TComp : IComponent
+            where TEvent : notnull
+            where TParentComp : IComponent
+        {
+            TRelayComp.SubscribeRelayEvent(EntityManager, handler);
+            _subscriptions.Add(new SubRelay<TRelayComp, TEvent>());
+        }
+
+        protected void SubscribeRelayedEvent<TRelayComp,TParentComp,TComp, TEvent>(
+            IEventRelayComponent<TRelayComp>.RelayedEventHandler<TParentComp,TComp, TEvent> handler,
+            Type[]? before = null,
+            Type[]? after = null)
+            where TRelayComp: IComponent, IEventRelayComponent<TRelayComp>
+            where TComp : IComponent
+            where TEvent : notnull
+            where TParentComp : IComponent
+        {
+            TRelayComp.SubscribeRelayEvent(EntityManager, handler);
+            _subscriptions.Add(new SubRelay<TRelayComp, TEvent>());
+        }
+
+
         private void ShutdownSubscriptions()
         {
             foreach (var sub in _subscriptions)
@@ -263,6 +314,27 @@ namespace Robust.Shared.GameObjects
             public override void Unsubscribe(EntitySystem sys, IEventBus bus)
             {
                 bus.UnsubscribeLocalEvent<TComp, TBase>();
+            }
+        }
+
+        private sealed class SubRelay<TComp, TBase> : SubBase where TComp : IComponent, IEventRelayComponent<TComp>
+            where TBase : notnull
+        {
+            public override void Unsubscribe(EntitySystem sys, IEventBus bus)
+            {
+                TComp.UnsubscribeRelayHandler<TComp, TBase>(bus);
+                TComp.UnsubscribeRelays<TBase>(bus);
+            }
+        }
+
+        private sealed class SubRelay<TParentComp,TComp, TBase> : SubBase where TComp : IComponent, IEventRelayComponent<TComp>
+            where TBase : notnull
+            where TParentComp : IComponent?
+        {
+            public override void Unsubscribe(EntitySystem sys, IEventBus bus)
+            {
+                TComp.UnsubscribeRelayHandler<TParentComp,TComp, TBase>(bus);
+                TComp.UnsubscribeRelays<TBase>(bus);
             }
         }
 
