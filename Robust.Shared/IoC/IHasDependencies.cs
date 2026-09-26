@@ -21,10 +21,11 @@ public interface IHasDependencies
     /// <summary>
     /// Inject services into this type.
     /// </summary>
-    /// <param name="instances">
+    ///<param name="dependencies">
     /// The list of services to inject, indexed by <see cref="DependencyType.Index"/>
     /// </param>
     void Inject(IDependencyCollection dependencies);
+    void DifferedInject(IDependencyCollection dependencies);
 }
 
 /// <summary>
@@ -42,3 +43,19 @@ public interface IHasDependencies
 /// </remarks>
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
 public sealed class HasDependenciesGeneratedAttribute : Attribute;
+
+public static partial class IoCExtensions
+{
+    extension<T>(T target) where T : IHasDependencies
+    {
+        public static void InjectDeps(T instance, IDependencyCollection dependencies)
+        {
+            target.Inject(dependencies);
+        }
+
+        public static void InjectDepsDiffered(T instance, IDependencyCollection dependencies)
+        {
+            target.DifferedInject(dependencies);
+        }
+    }
+}
