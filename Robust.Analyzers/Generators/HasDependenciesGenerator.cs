@@ -22,8 +22,10 @@ namespace Robust.Analyzers.Generators
     {
         private const string DependencyAttributeName = "Robust.Shared.IoC.DependencyAttribute";
         private const string IHasDependenciesName = "Robust.Shared.IoC.IHasDependencies";
+        private const string IPostInjectHandlerName = "Robust.Shared.IoC.IPostInjectHandler";
+        private const string IDifferedInjectHandlerName = "Robust.Shared.IoC.IDifferedInjectHandler";
 
-        private readonly record struct FieldInfo(string Name, string TypeName, bool IsReadOnly,IoCMode Mode);
+        private readonly record struct FieldInfo(string Name, string TypeName,bool IsReadOnly,IoCMode Mode);
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
@@ -62,7 +64,7 @@ namespace Robust.Analyzers.Generators
 
                     var partialTypeInfo = PartialTypeInfo.FromSymbol(owningType, declarationSyntax);
 
-                    return (partialTypeInfo, FieldInfo: new FieldInfo(field.Name, fieldType.ToDisplayString(), field.IsReadOnly, mode));
+                    return (partialTypeInfo, Symbol:owningType,FieldInfo: new FieldInfo(field.Name,fieldType.ToDisplayString(),field.IsReadOnly, mode));
                 });
 
             var grouped = fields
@@ -72,7 +74,11 @@ namespace Robust.Analyzers.Generators
                 {
                     return array.GroupBy(info => info.partialTypeInfo,
                             PartialTypeInfo.WithoutLocationComparer.Instance)
-                        .Select(group => (group.Key, group.Select(e => e.FieldInfo).AsEquatableArray()));
+                        .Select(group => (
+                            TypeInfo: group.Key,
+                            TypeSymbol: group.First().Symbol, // Pull the symbol from the group
+                            Fields: group.Select(e => e.FieldInfo).AsEquatableArray()
+                        ));
                 });
 
             var hasDependencyParents = grouped
@@ -85,8 +91,8 @@ namespace Robust.Analyzers.Generators
                     var hasDependencyParents = new List<PartialTypeInfo>();
 
                     var ourAssemblyTypes = groups
-                        .Where(g => g.Item2.All(static x => !x.IsReadOnly))
-                        .Select(x => x.Key)
+                        .Where(g => g.Fields.All(static x => !x.IsReadOnly))
+                        .Select(x => x.TypeInfo)
                         .ToDictionary<PartialTypeInfo, INamedTypeSymbol, PartialTypeInfo>(
                             x =>
                             {
@@ -102,6 +108,9 @@ namespace Robust.Analyzers.Generators
                     var hasDependencies = compilation.GetTypeByMetadataName(IHasDependenciesName);
                     if (hasDependencies == null && ourAssemblyTypes.Count != 0)
                         throw new InvalidOperationException();
+
+                    var postInjectHandler = compilation.GetTypeByMetadataName(IPostInjectHandlerName);
+                    var differedInjectHandler = compilation.GetTypeByMetadataName(IDifferedInjectHandlerName);
 
                     foreach (var kvp in ourAssemblyTypes)
                     {
@@ -130,17 +139,22 @@ namespace Robust.Analyzers.Generators
 
                     return hasDependencyParents.ToImmutableArray();
                 });
-
             context.RegisterImplementationSourceOutput(
                 grouped.Combine(hasDependencyParents),
                 static (productionContext, tuple) =>
                 {
-                    var ((typeInfo, fields), hasParentList) = tuple;
+                    var ((typeInfo, symbol,fields), hasParentList) = tuple;
 
                     if (fields.Any(a => a.IsReadOnly))
                         return;
 
                     var hasParent = hasParentList.Contains(typeInfo);
+
+                    bool implementsPostInject = symbol.AllInterfaces.Any(i =>
+                        i.ToDisplayString() == IPostInjectHandlerName);
+
+                    bool implementsDifferedInject = symbol.AllInterfaces.Any(i =>
+                        i.ToDisplayString() == IDifferedInjectHandlerName);
 
                     var sb = new IndentWriter(new StringBuilder());
 
@@ -159,7 +173,6 @@ namespace Robust.Analyzers.Generators
                     }
 
                     sb.AppendOpeningBrace(); // {
-
                     if (!hasParent && typeInfo.IsSealed)
                     {
                         // Explicit impl only
@@ -167,6 +180,7 @@ namespace Robust.Analyzers.Generators
                         sb.AppendLineIndented($"void global::{IHasDependenciesName}.Inject(global::Robust.Shared.IoC.IDependencyCollection dependencies)");
                         sb.AppendOpeningBrace(); // {
                         WriteInject(ref sb, fields, false, typeInfo.DisplayName, false);
+                        if (implementsPostInject) sb.AppendLineIndented($"this.PostInject();");
                         sb.AppendClosingBrace(); // }
                         sb.AppendLine();
                         // Explicit impl only, differed
@@ -174,6 +188,7 @@ namespace Robust.Analyzers.Generators
                         sb.AppendLineIndented($"void global::{IHasDependenciesName}.DifferedInject(global::Robust.Shared.IoC.IDependencyCollection dependencies)");
                         sb.AppendOpeningBrace(); // {
                         WriteInject(ref sb, fields, false, typeInfo.DisplayName, true);
+                        if (implementsDifferedInject) sb.AppendLineIndented($"this.PostDifferedInject();");
                         sb.AppendClosingBrace(); // }
                     }
                     else
@@ -201,6 +216,7 @@ namespace Robust.Analyzers.Generators
                         sb.AppendLineIndented($"protected {(hasParent ? "override" : "virtual")} void InjectImpl(global::Robust.Shared.IoC.IDependencyCollection dependencies)");
                         sb.AppendOpeningBrace(); // {
                         WriteInject(ref sb, fields, hasParent, typeInfo.DisplayName, false);
+                        if (implementsPostInject) sb.AppendLineIndented($"this.PostInject();");
                         sb.AppendClosingBrace(); // }
                         sb.AppendLine();
 
@@ -210,6 +226,7 @@ namespace Robust.Analyzers.Generators
                         sb.AppendLineIndented($"protected {(hasParent ? "override" : "virtual")} void DifferedInjectImpl(global::Robust.Shared.IoC.IDependencyCollection dependencies)");
                         sb.AppendOpeningBrace(); // {
                         WriteInject(ref sb, fields, hasParent, typeInfo.DisplayName, true);
+                        if (implementsDifferedInject) sb.AppendLineIndented($"this.PostDifferedInject();");
                         sb.AppendClosingBrace(); // }
                     }
                     sb.AppendClosingBrace(); // }
@@ -236,7 +253,6 @@ namespace Robust.Analyzers.Generators
                     WriteDiffered(ref sb, field);
                 }
             }
-
             if (!isOverride) return;
             sb.AppendLine();
             sb.AppendLineIndented(differed ? "base.DifferedInjectImpl(dependencies);" : "base.InjectImpl(dependencies);");

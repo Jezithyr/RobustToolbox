@@ -27,7 +27,6 @@ public interface IHasDependencies
     void Inject(IDependencyCollection dependencies);
     void DifferedInject(IDependencyCollection dependencies);
 }
-
 /// <summary>
 /// Has the dependencies source generator ran on this type?
 /// </summary>
