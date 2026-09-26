@@ -48,14 +48,14 @@ public static partial class IoCExtensions
 {
     extension<T>(T target) where T : IHasDependencies
     {
-        public static void InjectDeps(T instance, IDependencyCollection dependencies)
+        public static void InjectDeps(T instance,IDependencyCollection dependencies)
         {
-            target.Inject(dependencies);
+            instance.Inject(dependencies);
         }
 
-        public static void InjectDepsDiffered(T instance, IDependencyCollection dependencies)
+        public static void InjectDepsDiffered(T instance,IDependencyCollection dependencies)
         {
-            target.DifferedInject(dependencies);
+            instance.DifferedInject(dependencies);
         }
     }
 }
