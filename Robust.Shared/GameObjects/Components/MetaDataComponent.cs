@@ -39,18 +39,25 @@ namespace Robust.Shared.GameObjects
         public TimeSpan? PauseTime;
 
         /// <summary>
+        ///     Unique Persistent GUID for this entity (optional)
+        /// </summary>
+        public Guid Guid = Guid.Empty;
+
+        /// <summary>
         ///     Constructs a new instance of <see cref="MetaDataComponentState"/>.
         /// </summary>
         /// <param name="name">The in-game name of this entity.</param>
         /// <param name="description">The in-game description of this entity.</param>
         /// <param name="prototypeId">The prototype this entity was created from, if any.</param>
         /// <param name="pauseTime">When this entity was paused.</param>
-        public MetaDataComponentState(string? name, string? description, string? prototypeId, TimeSpan? pauseTime)
+        /// <param name="guid">Unique GUID for this entity if any.</param>
+        public MetaDataComponentState(string? name, string? description, string? prototypeId, TimeSpan? pauseTime, Guid guid)
         {
             Name = name;
             Description = description;
             PrototypeId = prototypeId;
             PauseTime = pauseTime;
+            Guid = guid;
         }
     }
 
@@ -62,6 +69,8 @@ namespace Robust.Shared.GameObjects
     {
         [DataField("name")] internal string? _entityName;
         [DataField("desc")] internal string? _entityDescription;
+        [DataField("guid")]  internal Guid Guid = Guid.Empty;
+        public bool HasGuid => !Guid.Equals(Guid.Empty);
         internal EntityPrototype? _entityPrototype;
 
         /// <summary>
@@ -249,6 +258,11 @@ namespace Robust.Shared.GameObjects
         /// Indicates this entity represents server-managed map or grid PVS chunk data.
         /// </summary>
         ChunkEntity = 1 << 6,
+
+        /// <summary>
+        /// Indicates this entity has a unique GUID identifier.
+        /// </summary>
+        HasGuid = 1 << 7,
     }
 
     /// <summary>
